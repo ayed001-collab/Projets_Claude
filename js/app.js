@@ -101,7 +101,29 @@
   }
 
   /* ---------------- Lecture des entrées ---------------- */
+  function lireAssures() {
+    const assures = [
+      {
+        age: +$("age1").value || 35,
+        fumeur: $("fum1").checked,
+        profession: $("prof1").value,
+        quotite: (+$("quot1").value || 0) / 100,
+      },
+    ];
+    if ($("coEmp").checked) {
+      assures.push({
+        age: +$("age2").value || 35,
+        fumeur: $("fum2").checked,
+        profession: $("prof2").value,
+        quotite: (+$("quot2").value || 0) / 100,
+      });
+    }
+    return assures;
+  }
+
   function lireEntrees() {
+    const assures = lireAssures();
+    const { tauxEffectif, detail } = Finance.tauxAssuranceEffectif(assures);
     return {
       prix: +$("prix").value || 0,
       typeBien: $("typeBien").value,
@@ -110,9 +132,12 @@
       apport: +$("apport").value || 0,
       dureeMois: +$("duree").value,
       garantie: $("garantie").value,
-      assuranceTaux: (+$("assuranceTaux").value || 0) / 100,
+      // Le taux effectif agrège les quotités : on l'applique au capital avec quotité = 1.
+      assuranceTaux: tauxEffectif,
       assuranceBase: $("assuranceBase").value,
-      assuranceQuotite: (+$("assuranceQuotite").value || 100) / 100,
+      assuranceQuotite: 1,
+      assures,
+      assuranceDetail: detail,
       ptzActif: $("ptzActif").checked,
       ptzRevenus: +$("ptzRevenus").value || 0,
       ptzPersonnes: +$("ptzPersonnes").value || 1,
@@ -186,6 +211,7 @@
     // 6) Affichage
     afficherRecap(e, notaire, coutOperation, besoinFinancement, ptzMontant, montantPrincipal);
     afficherComptant(e, resultats, montantPrincipal);
+    afficherAssuranceCalc(e, montantPrincipal + ptzMontant);
     afficherPTZ(e, ptz, ptzMontant);
     afficherComparatif(resultats, coutOperation);
     afficherLeviers(e, resultats);
@@ -255,6 +281,29 @@
         return `<div class="${lblCls}">${lbl}</div><div class="${valCls}">${val}</div>`;
       })
       .join("");
+  }
+
+  /**
+   * Détaille l'assurance emprunteur : taux et prime mensuelle par assuré + total.
+   * Base capital initial pour l'affichage (prime constante) ; la base « restant dû »
+   * donne une prime dégressive (visible dans le tableau d'amortissement).
+   */
+  function afficherAssuranceCalc(e, capitalAssure) {
+    const noms = e.assures.length > 1 ? ["Emprunteur 1", "Co-emprunteur"] : ["Emprunteur 1"];
+    let totalMensuel = 0;
+    const lignes = e.assuranceDetail
+      .map((d, i) => {
+        const mensuel = (capitalAssure * d.taux * d.quotite) / 12;
+        totalMensuel += mensuel;
+        return `<div class="line"><span>${noms[i]} — ${pct(d.taux)} × ${(d.quotite * 100).toFixed(0)} %</span><span>${euro2(mensuel)}/mois</span></div>`;
+      })
+      .join("");
+    const totalQuotite = e.assuranceDetail.reduce((s, d) => s + d.quotite, 0);
+    $("assuranceCalc").innerHTML =
+      `<div class="line"><span>Taux effectif (Σ taux × quotité)</span><span class="big">${pct(e.assuranceTaux)}</span></div>` +
+      lignes +
+      `<div class="line"><span><strong>Prime totale (1re mensualité)</strong></span><span class="big">${euro2(totalMensuel)}/mois</span></div>` +
+      `<div class="line" style="margin-top:6px;color:var(--muted)"><span>Couverture totale</span><span>${(totalQuotite * 100).toFixed(0)} %</span></div>`;
   }
 
   function afficherPTZ(e, ptz, ptzMontant) {
@@ -564,10 +613,18 @@
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") $("ratesModal").hidden = true;
     });
+    // Affichage/masquage du bloc co-emprunteur
+    $("coEmp").addEventListener("change", () => {
+      $("borrower2").hidden = !$("coEmp").checked;
+      simuler();
+    });
     // Recalcul dynamique sur les champs principaux
-    ["prix", "typeBien", "dmto", "zone", "apport", "duree", "garantie", "assuranceTaux", "assuranceBase", "assuranceQuotite", "ptzActif", "ptzRevenus", "ptzPersonnes"].forEach(
-      (id) => $(id).addEventListener("change", simuler)
-    );
+    [
+      "prix", "typeBien", "dmto", "zone", "apport", "duree", "garantie",
+      "assuranceBase", "age1", "prof1", "fum1", "quot1",
+      "age2", "prof2", "fum2", "quot2",
+      "ptzActif", "ptzRevenus", "ptzPersonnes",
+    ].forEach((id) => $(id).addEventListener("change", simuler));
     simuler(); // simulation initiale
   }
 

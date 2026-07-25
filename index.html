@@ -92,20 +92,62 @@
         <fieldset>
           <legend>Assurance emprunteur</legend>
           <label>
-            Taux annuel d'assurance (%)
-            <input type="number" id="assuranceTaux" value="0.34" min="0" step="0.01" />
-          </label>
-          <label>
             Base de calcul
             <select id="assuranceBase">
-              <option value="initial">Capital initial (assurance groupe)</option>
-              <option value="restant">Capital restant dû (délégation, dégressif)</option>
+              <option value="initial">Capital initial (constante)</option>
+              <option value="restant">Capital restant dû (dégressive)</option>
             </select>
           </label>
-          <label>
-            Quotité assurée (%)
-            <input type="number" id="assuranceQuotite" value="100" min="0" max="200" step="10" />
+
+          <div class="borrower">
+            <div class="borrower-title">Emprunteur 1</div>
+            <label>
+              Âge à la souscription
+              <input type="number" id="age1" value="35" min="18" max="85" step="1" />
+            </label>
+            <label>
+              Profession
+              <select id="prof1">
+                <option value="sedentaire">Bureau / sédentaire</option>
+                <option value="deplacements">Déplacements fréquents</option>
+                <option value="manuelle">Manuelle / à risque</option>
+                <option value="risque">Très à risque (hauteur, etc.)</option>
+              </select>
+            </label>
+            <label class="checkbox"><input type="checkbox" id="fum1" /> Fumeur</label>
+            <label>
+              Quotité assurée (%)
+              <input type="number" id="quot1" value="100" min="0" max="100" step="10" />
+            </label>
+          </div>
+
+          <label class="checkbox">
+            <input type="checkbox" id="coEmp" /> Ajouter un co-emprunteur
           </label>
+
+          <div class="borrower" id="borrower2" hidden>
+            <div class="borrower-title">Co-emprunteur</div>
+            <label>
+              Âge à la souscription
+              <input type="number" id="age2" value="35" min="18" max="85" step="1" />
+            </label>
+            <label>
+              Profession
+              <select id="prof2">
+                <option value="sedentaire">Bureau / sédentaire</option>
+                <option value="deplacements">Déplacements fréquents</option>
+                <option value="manuelle">Manuelle / à risque</option>
+                <option value="risque">Très à risque (hauteur, etc.)</option>
+              </select>
+            </label>
+            <label class="checkbox"><input type="checkbox" id="fum2" /> Fumeur</label>
+            <label>
+              Quotité assurée (%)
+              <input type="number" id="quot2" value="100" min="0" max="100" step="10" />
+            </label>
+          </div>
+
+          <div id="assuranceCalc" class="assur-calc"></div>
         </fieldset>
 
         <fieldset>

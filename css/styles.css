@@ -258,6 +258,44 @@ td.num {
   margin: 0 0 12px;
 }
 
+/* Assurance emprunteur — blocs par assuré */
+.borrower {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px 12px 2px;
+  margin: 4px 0 12px;
+  background: var(--bg);
+}
+.borrower[hidden] {
+  display: none;
+}
+.borrower-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.assur-calc {
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: var(--highlight);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+.assur-calc .big {
+  font-weight: 700;
+  color: var(--accent);
+}
+.assur-calc .line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 /* Barre d'outils des taux */
 .rates-toolbar {
   display: flex;

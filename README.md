@@ -30,7 +30,7 @@ python3 -m http.server 8000    # puis http://localhost:8000
 | Saisie du montant du bien | Champ prix + apport personnel |
 | Frais de notaire (neuf vs ancien) | Barème réglementé des émoluments + DMTO différenciés (≈7,4 % ancien / ≈2,3 % neuf), avec option de majoration départementale 2025 |
 | Coût du dossier selon la banque | Frais de dossier paramétrables par banque (forfait ou %) |
-| Frais d'assurance crédit | Taux, base (capital initial *ou* restant dû) et quotité paramétrables |
+| Frais d'assurance crédit | Modèle réaliste par assuré : **âge, statut fumeur, profession, quotité**, pour **1 ou 2 emprunteurs** ; taux effectif = Σ(taux × quotité) ; base capital initial *ou* restant dû |
 | Calcul des échéances mensuelles | Mensualité assurance comprise, par banque, avec frais intégrés |
 | PTZ / prêt à taux zéro | Éligibilité + montant selon zone, revenus, composition du foyer (barèmes 2025) |
 | Options de réduction du coût | Section « leviers » + comparateur d'écart de coût total |
@@ -108,7 +108,11 @@ les taux sont en pourcentage.
   + droits de mutation (DMTO ≈ 5,81 % ancien / 0,715 % neuf) + contribution de sécurité
   immobilière (0,10 %) + débours forfaitaires.
 - **Garantie** : caution (≈1,2 %, partiellement restituable) ou hypothèque/IPPD (≈1,5 %).
-- **Assurance** : sur capital initial (constante) ou capital restant dû (dégressive).
+- **Assurance emprunteur** : taux par assuré estimé à partir d'un barème par tranche d'âge,
+  majoré du statut fumeur (×1,6) et du risque professionnel (×1,0 à ×1,6). Taux effectif du prêt
+  = Σ(taux_assuré × quotité_assuré) ; prime sur capital initial (constante) ou restant dû (dégressive).
+  Valeurs indicatives (les taux réels proviennent des grilles des assureurs ; la loi Lemoine supprime
+  le questionnaire médical sous 200 000 € par assuré et remboursement avant 60 ans).
 - **PTZ** : `montant = min(coût ; plafond zone) × quotité de tranche`. Tranche déterminée
   par `max(RFR N-2 ; coût/9)` comparé aux plafonds de revenu (× coefficient familial).
 - **TAEG** : bissection sur le taux annulant la VAN des flux réels.
