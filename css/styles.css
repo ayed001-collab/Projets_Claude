@@ -327,6 +327,73 @@ td.num {
   flex: 1;
 }
 
+/* Tableau d'amortissement */
+.amort-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.amort-head h2 {
+  margin: 0;
+}
+.amort-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+label.inline {
+  margin: 0;
+  font-size: 0.78rem;
+}
+label.inline select {
+  margin-top: 2px;
+  padding: 6px 8px;
+}
+.btn-secondary.compact {
+  width: auto;
+  padding: 8px 12px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.amort-table tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+}
+.amort-table tbody tr:hover {
+  background: var(--highlight);
+}
+#amortMeta {
+  margin-bottom: 12px;
+}
+
+/* Impression / PDF : n'imprimer que le tableau d'amortissement */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #amortPanel,
+  #amortPanel * {
+    visibility: visible;
+  }
+  #amortPanel {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .table-scroll {
+    overflow: visible;
+  }
+}
+
 /* Footer */
 .site-footer {
   background: var(--panel);

@@ -88,6 +88,97 @@
     return mensualite(capital, tauxAnnuel, mois) * mois - capital;
   }
 
+  /**
+   * Tableau d'amortissement DÉTAILLÉ combinant le prêt principal, le PTZ et l'assurance.
+   * Chaque ligne = un mois avec la ventilation intérêts / capital / assurance et
+   * le capital restant dû global.
+   * @returns {Array<{mois, interet, capitalPrincipal, capitalPTZ, assurance, mensualite, restant}>}
+   */
+  function echeancierDetaille(opts) {
+    const {
+      montantPrincipal,
+      tauxCredit,
+      dureeMois,
+      ptzMontant = 0,
+      ptzDureeMois = dureeMois,
+      assuranceTaux = 0,
+      assuranceBase = "initial",
+      assuranceQuotite = 1,
+    } = opts;
+
+    const iP = tauxCredit / 12;
+    const mP = mensualite(montantPrincipal, tauxCredit, dureeMois);
+    const mZ = ptzMontant > 0 ? mensualite(ptzMontant, 0, ptzDureeMois) : 0;
+    const capitalAssureInitial = (montantPrincipal + ptzMontant) * assuranceQuotite;
+
+    let restP = montantPrincipal;
+    let restZ = ptzMontant;
+    const nbMois = Math.max(dureeMois, ptzDureeMois);
+    const rows = [];
+
+    for (let k = 1; k <= nbMois; k++) {
+      // Prêt principal
+      let intP = 0,
+        capP = 0;
+      if (k <= dureeMois && restP > 0.005) {
+        intP = restP * iP;
+        capP = k === dureeMois ? restP : mP - intP;
+        capP = Math.min(capP, restP);
+        restP = Math.max(0, restP - capP);
+      }
+      // PTZ (taux 0)
+      let capZ = 0;
+      if (k <= ptzDureeMois && restZ > 0.005) {
+        capZ = k === ptzDureeMois ? restZ : mZ;
+        capZ = Math.min(capZ, restZ);
+        restZ = Math.max(0, restZ - capZ);
+      }
+
+      const restant = restP + restZ;
+      // Assurance
+      let assur;
+      if (assuranceBase === "restant") {
+        // Base = capital restant dû du mois précédent (avant amortissement de ce mois)
+        const baseAssur = (restant + capP + capZ) * assuranceQuotite;
+        assur = (baseAssur * assuranceTaux) / 12;
+      } else {
+        assur = (capitalAssureInitial * assuranceTaux) / 12;
+      }
+
+      rows.push({
+        mois: k,
+        interet: round2(intP),
+        capitalPrincipal: round2(capP),
+        capitalPTZ: round2(capZ),
+        assurance: round2(assur),
+        mensualite: round2(intP + capP + capZ + assur),
+        restant: round2(restant),
+      });
+    }
+    return rows;
+  }
+
+  /**
+   * Agrège un échéancier détaillé par année civile de prêt (12 mois).
+   */
+  function agregerParAnnee(rows) {
+    const annees = [];
+    for (let i = 0; i < rows.length; i += 12) {
+      const tranche = rows.slice(i, i + 12);
+      const somme = (f) => tranche.reduce((s, r) => s + r[f], 0);
+      annees.push({
+        annee: Math.floor(i / 12) + 1,
+        interet: round2(somme("interet")),
+        capitalPrincipal: round2(somme("capitalPrincipal")),
+        capitalPTZ: round2(somme("capitalPTZ")),
+        assurance: round2(somme("assurance")),
+        mensualite: round2(somme("mensualite")),
+        restant: tranche[tranche.length - 1].restant,
+      });
+    }
+    return annees;
+  }
+
   /* -------------------------------------------------------------------------
    *  FRAIS DE NOTAIRE (frais d'acquisition)
    * ---------------------------------------------------------------------- */
@@ -376,6 +467,8 @@
     mensualite,
     assurance,
     echeancier,
+    echeancierDetaille,
+    agregerParAnnee,
     coutInterets,
     emolumentsNotaire,
     fraisNotaire,

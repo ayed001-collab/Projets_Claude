@@ -34,6 +34,7 @@ python3 -m http.server 8000    # puis http://localhost:8000
 | Calcul des échéances mensuelles | Mensualité assurance comprise, par banque, avec frais intégrés |
 | PTZ / prêt à taux zéro | Éligibilité + montant selon zone, revenus, composition du foyer (barèmes 2025) |
 | Options de réduction du coût | Section « leviers » + comparateur d'écart de coût total |
+| Tableau d'amortissement | Échéancier détaillé par banque (vue mensuelle ou annuelle), prêt principal + PTZ + assurance, avec **export CSV** et **impression / PDF** |
 
 Le simulateur calcule aussi un **TAEG approché** par recherche du taux annulant la valeur
 actuelle nette des flux (mensualités + frais de dossier + garantie).
@@ -102,7 +103,7 @@ mais mériteraient une décision explicite :
 ### 3. Points de cadrage produit non abordés
 - **Objectif** : achat résidence principale, investissement locatif (Pinel/LMNP, fiscalité différente) ou secondaire ? Le PTZ ne concerne que la RP des primo-accédants.
 - **Prêts complémentaires** : Prêt Action Logement, PAS, prêt conventionné, éco-PTZ, prêts régionaux — à modéliser pour un « plan de financement » complet et un **lissage de prêts**.
-- **Sorties attendues** : tableau d'amortissement exportable (PDF), enregistrement/comparaison de scénarios, envoi par e-mail ?
+- **Sorties attendues** : tableau d'amortissement exportable (CSV / PDF) ✅ *implémenté* ; enregistrement/comparaison de scénarios, envoi par e-mail : à venir.
 - **Conformité** : mentions légales, RGPD si données personnelles stockées, statut IOBSP si conseil.
 
 ### Conclusion

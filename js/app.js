@@ -15,6 +15,9 @@
   // Banques actives (copie éditable des banques par défaut)
   let banques = Data.BANQUES_DEFAUT.map((c) => ({ ...c, grilleTaux: { ...c.grilleTaux } }));
 
+  // Contexte de la dernière simulation (pour le tableau d'amortissement)
+  let dernierContexte = null;
+
   /* ---------------- Lecture des entrées ---------------- */
   function lireEntrees() {
     return {
@@ -89,11 +92,22 @@
       })
       .sort((a, b) => a.coutTotalCredit - b.coutTotalCredit);
 
+    // Mémorise le contexte pour le tableau d'amortissement
+    dernierContexte = {
+      e,
+      resultats,
+      montantPrincipal,
+      ptzMontant,
+      ptzDureeMois,
+    };
+
     // 6) Affichage
     afficherRecap(e, notaire, coutOperation, besoinFinancement, ptzMontant, montantPrincipal);
     afficherPTZ(e, ptz, ptzMontant);
     afficherComparatif(resultats, coutOperation);
     afficherLeviers(e, resultats);
+    remplirSelecteurAmort(resultats);
+    afficherAmortissement();
   }
 
   /* ---------------- Affichages ---------------- */
@@ -183,6 +197,134 @@
     $("leviers").innerHTML = leviers.map((l) => `<li>${l}</li>`).join("");
   }
 
+  /* ---------------- Tableau d'amortissement ---------------- */
+  function remplirSelecteurAmort(resultats) {
+    const sel = $("amortBanque");
+    const prev = sel.value;
+    sel.innerHTML = resultats
+      .map((r) => `<option value="${r.banqueNom}">${r.banqueNom} — ${pct(r.tauxCredit)}</option>`)
+      .join("");
+    // Conserve la sélection si possible, sinon prend la meilleure (1re)
+    if (prev && resultats.some((r) => r.banqueNom === prev)) sel.value = prev;
+  }
+
+  function construireEcheancier() {
+    if (!dernierContexte) return null;
+    const { e, resultats, montantPrincipal, ptzMontant, ptzDureeMois } = dernierContexte;
+    const nomChoisi = $("amortBanque").value || (resultats[0] && resultats[0].banqueNom);
+    const res = resultats.find((r) => r.banqueNom === nomChoisi) || resultats[0];
+    if (!res) return null;
+    const rows = Finance.echeancierDetaille({
+      montantPrincipal,
+      tauxCredit: res.tauxCredit,
+      dureeMois: e.dureeMois,
+      ptzMontant,
+      ptzDureeMois,
+      assuranceTaux: e.assuranceTaux,
+      assuranceBase: e.assuranceBase,
+      assuranceQuotite: e.assuranceQuotite,
+    });
+    return { res, rows, hasPTZ: ptzMontant > 0 };
+  }
+
+  function afficherAmortissement() {
+    const data = construireEcheancier();
+    const table = $("amortTable");
+    if (!data) {
+      table.querySelector("thead").innerHTML = "";
+      table.querySelector("tbody").innerHTML = "";
+      table.querySelector("tfoot").innerHTML = "";
+      $("amortMeta").textContent = "";
+      return;
+    }
+    const { res, rows, hasPTZ } = data;
+    const vue = $("amortVue").value;
+    const affichees = vue === "annuel" ? Finance.agregerParAnnee(rows) : rows;
+    const cle = vue === "annuel" ? "annee" : "mois";
+    const libelle = vue === "annuel" ? "Année" : "Mois";
+
+    $("amortMeta").innerHTML = `Prêt principal de <strong>${euro(dernierContexte.montantPrincipal)}</strong> au taux de <strong>${pct(res.tauxCredit)}</strong>${hasPTZ ? ` + PTZ de <strong>${euro(dernierContexte.ptzMontant)}</strong> à 0 %` : ""} — assurance ${dernierContexte.e.assuranceBase === "restant" ? "sur capital restant dû" : "sur capital initial"}.`;
+
+    const colVerse = vue === "annuel" ? "Total versé" : "Mensualité";
+    const cols = [
+      libelle,
+      "Intérêts",
+      "Capital (principal)",
+      ...(hasPTZ ? ["Capital (PTZ)"] : []),
+      "Assurance",
+      colVerse,
+      "Capital restant dû",
+    ];
+    table.querySelector("thead").innerHTML =
+      "<tr>" + cols.map((c) => `<th>${c}</th>`).join("") + "</tr>";
+
+    table.querySelector("tbody").innerHTML = affichees
+      .map((r) => {
+        const cells = [
+          r[cle],
+          euro2(r.interet),
+          euro2(r.capitalPrincipal),
+          ...(hasPTZ ? [euro2(r.capitalPTZ)] : []),
+          euro2(r.assurance),
+          euro2(r.mensualite),
+          euro(r.restant),
+        ];
+        return "<tr>" + cells.map((c, i) => `<td class="${i === 0 ? "" : "num"}">${c}</td>`).join("") + "</tr>";
+      })
+      .join("");
+
+    // Total (sur l'échéancier mensuel complet, indépendamment de la vue)
+    const somme = (f) => rows.reduce((s, r) => s + r[f], 0);
+    const totCells = [
+      "Total",
+      euro(somme("interet")),
+      euro(somme("capitalPrincipal")),
+      ...(hasPTZ ? [euro(somme("capitalPTZ"))] : []),
+      euro(somme("assurance")),
+      euro(somme("mensualite")),
+      "—",
+    ];
+    table.querySelector("tfoot").innerHTML =
+      "<tr>" + totCells.map((c, i) => `<td class="${i === 0 ? "" : "num"}">${c}</td>`).join("") + "</tr>";
+  }
+
+  function exporterCsv() {
+    const data = construireEcheancier();
+    if (!data) return;
+    const { res, rows, hasPTZ } = data;
+    const entete = [
+      "Mois",
+      "Interets",
+      "Capital_principal",
+      ...(hasPTZ ? ["Capital_PTZ"] : []),
+      "Assurance",
+      "Mensualite",
+      "Capital_restant_du",
+    ];
+    const lignes = rows.map((r) =>
+      [
+        r.mois,
+        r.interet,
+        r.capitalPrincipal,
+        ...(hasPTZ ? [r.capitalPTZ] : []),
+        r.assurance,
+        r.mensualite,
+        r.restant,
+      ].join(";")
+    );
+    const csv = [entete.join(";"), ...lignes].join("\r\n");
+    // BOM pour un affichage correct des accents dans Excel
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `amortissement_${res.banqueNom.replace(/[^a-z0-9]/gi, "_")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   /* ---------------- Modale d'édition des taux ---------------- */
   function ouvrirModale() {
     const tbody = $("ratesTable").querySelector("tbody");
@@ -231,6 +373,10 @@
     $("ratesSave").addEventListener("click", sauverModale);
     $("ratesClose").addEventListener("click", () => ($("ratesModal").hidden = true));
     $("theme-toggle").addEventListener("click", toggleTheme);
+    $("amortBanque").addEventListener("change", afficherAmortissement);
+    $("amortVue").addEventListener("change", afficherAmortissement);
+    $("exportCsv").addEventListener("click", exporterCsv);
+    $("exportPdf").addEventListener("click", () => window.print());
     // Recalcul dynamique sur les champs principaux
     ["prix", "typeBien", "dmto", "zone", "apport", "duree", "garantie", "assuranceTaux", "assuranceBase", "assuranceQuotite", "ptzActif", "ptzRevenus", "ptzPersonnes"].forEach(
       (id) => $(id).addEventListener("change", simuler)

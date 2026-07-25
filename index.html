@@ -168,6 +168,36 @@
           </div>
         </div>
 
+        <!-- Tableau d'amortissement -->
+        <div class="panel" id="amortPanel">
+          <div class="amort-head">
+            <h2>Tableau d'amortissement</h2>
+            <div class="amort-controls no-print">
+              <label class="inline">
+                Banque
+                <select id="amortBanque"></select>
+              </label>
+              <label class="inline">
+                Vue
+                <select id="amortVue">
+                  <option value="annuel">Annuelle</option>
+                  <option value="mensuel">Mensuelle</option>
+                </select>
+              </label>
+              <button id="exportCsv" class="btn-secondary compact">⬇ CSV</button>
+              <button id="exportPdf" class="btn-secondary compact">🖨 Imprimer / PDF</button>
+            </div>
+          </div>
+          <div id="amortMeta" class="hint"></div>
+          <div class="table-scroll">
+            <table id="amortTable" class="amort-table">
+              <thead></thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+
         <!-- Leviers d'optimisation -->
         <div class="panel levers">
           <h2>Leviers pour réduire le coût du crédit</h2>
