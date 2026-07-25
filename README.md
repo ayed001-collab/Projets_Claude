@@ -69,6 +69,16 @@ node -e 'global.window=globalThis; require("./js/finance.js"); require("./js/dat
 > et les banques ne publient pas de taux personnalisés exploitables). Le scraping côté client
 > est donc impossible — et le lien Artifact hébergé bloque en plus toute requête externe.
 
+**Par défaut, le bouton fonctionne sans configuration** : il charge `data/taux.json` du dépôt,
+servi par GitHub raw (CORS activé). Mettez à jour ce fichier et committez → le bouton recharge
+les nouvelles valeurs. Vous pouvez aussi pointer vers votre propre flux.
+
+> **Sur le lien Artifact hébergé**, les requêtes externes sont **bloquées** par la politique de
+> sécurité (aucune capacité d'accès réseau externe n'existe pour ces pages). Le bouton y affiche
+> alors un message explicite : utilisez **« ✎ Modifier »** pour saisir les taux (mémorisés
+> localement). La mise à jour automatique fonctionne dans la version du dépôt (local, GitHub
+> Pages, hébergement classique).
+
 Le bouton **« ⟳ Mettre à jour »** consomme un **flux JSON configurable** (`data/taux.sample.json`
 donne le format), que vous alimentez selon votre contexte :
 
