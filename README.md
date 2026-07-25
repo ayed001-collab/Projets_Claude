@@ -26,7 +26,7 @@ python3 -m http.server 8000    # puis http://localhost:8000
 
 | Besoin exprimé | Implémentation |
 |---|---|
-| Taux des 5 banques les plus compétitives (dont Société Générale) | Grille éditable : SG, Crédit Agricole, BNP Paribas, Caisse d'Épargne, Crédit Mutuel/CIC — taux par durée (15/20/25 ans) |
+| Taux des 5 banques les plus compétitives (dont Société Générale) | Grille éditable : SG, Crédit Agricole, BNP Paribas, Caisse d'Épargne, Crédit Mutuel/CIC — taux par durée (15/20/25 ans), avec **date de mise à jour**, **liens vers les pages officielles** et bouton **« ⟳ Mettre à jour »** (flux JSON configurable) |
 | Saisie du montant du bien | Champ prix + apport personnel |
 | Frais de notaire (neuf vs ancien) | Barème réglementé des émoluments + DMTO différenciés (≈7,4 % ancien / ≈2,3 % neuf), avec option de majoration départementale 2025 |
 | Coût du dossier selon la banque | Frais de dossier paramétrables par banque (forfait ou %) |
@@ -48,7 +48,9 @@ index.html        Structure & formulaire
 css/styles.css    Mise en forme (thème clair/sombre)
 js/finance.js     Moteur de calcul — fonctions pures, testables (aucune dépendance UI)
 js/data.js        Données de référence : banques, barèmes PTZ, tranches notaire
+js/rates.js       Fournisseur de taux : flux JSON, mise à jour, persistance locale
 js/app.js         Orchestration : lecture des saisies → calcul → affichage
+data/taux.sample.json  Exemple de flux de taux (format attendu par « Mettre à jour »)
 ```
 
 Le moteur (`finance.js`) est isolé de l'interface pour être testé indépendamment
@@ -60,6 +62,34 @@ node -e 'global.window=globalThis; require("./js/finance.js"); require("./js/dat
 ```
 
 ---
+
+## Mise à jour automatique des taux
+
+> ⚠️ **Un navigateur ne peut pas lire directement les sites des banques** (politique CORS ;
+> et les banques ne publient pas de taux personnalisés exploitables). Le scraping côté client
+> est donc impossible — et le lien Artifact hébergé bloque en plus toute requête externe.
+
+Le bouton **« ⟳ Mettre à jour »** consomme un **flux JSON configurable** (`data/taux.sample.json`
+donne le format), que vous alimentez selon votre contexte :
+
+- **Saisie manuelle** dans la fenêtre « ✎ Modifier » (mémorisée en local) ;
+- **API d'un courtier / agrégateur** exposant les barèmes avec en-têtes CORS ;
+- **Script serveur** (exécuté hors navigateur — Node, Python…) qui agrège les barèmes publiés
+  et publie un JSON conforme sur un hôte que vous contrôlez.
+
+L'URL du flux et les taux sont mémorisés (localStorage). Chaque banque affiche un lien vers sa
+**page officielle de barème** pour vérification. Format du flux :
+
+```json
+{
+  "dateMaj": "2026-07-20",
+  "origine": "Nom de la source",
+  "banques": { "sg": {"180": 3.15, "240": 3.35, "300": 3.55}, "ca": { } }
+}
+```
+
+Les identifiants de banque (`sg`, `ca`, `bnp`, `ce`, `cmut`) correspondent à ceux de `js/data.js` ;
+les taux sont en pourcentage.
 
 ## Méthodologie de calcul
 

@@ -145,6 +145,14 @@
         <!-- Comparatif banques -->
         <div class="panel">
           <h2>Comparatif des banques</h2>
+          <div class="rates-toolbar">
+            <span id="ratesMeta" class="rates-meta"></span>
+            <span class="rates-actions">
+              <button id="updateRates" class="btn-secondary compact" title="Charger les taux depuis le flux configuré">⟳ Mettre à jour</button>
+              <button id="editRates2" class="btn-secondary compact">✎ Modifier</button>
+            </span>
+          </div>
+          <div id="ratesStatus" class="rates-status" hidden></div>
           <p class="hint">
             Mensualités assurance comprise, triées de la plus avantageuse à la plus chère
             (coût total du crédit).
@@ -211,9 +219,28 @@
       <div class="modal-box">
         <h2>Taux &amp; frais par banque</h2>
         <p class="hint">
-          Ajustez les taux nominaux (hors assurance) et les frais de dossier pour coller à vos
-          barèmes ou aux propositions reçues.
+          Ajustez les taux nominaux (hors assurance) et consultez la page officielle de chaque
+          banque via le lien « source ». Les taux sont mémorisés localement.
         </p>
+
+        <fieldset>
+          <legend>Mise à jour automatique</legend>
+          <label>
+            URL du flux de taux (JSON, CORS requis)
+            <input type="url" id="feedUrl" placeholder="https://exemple.com/taux.json" />
+          </label>
+          <p class="hint">
+            Le navigateur ne peut pas lire directement les sites des banques (CORS). Pointez vers
+            un flux JSON que vous alimentez (courtier, agrégateur, ou script serveur). Voir
+            <code>data/taux.sample.json</code> pour le format.
+          </p>
+          <div class="modal-actions">
+            <button id="fetchRates" class="btn-secondary compact">⟳ Actualiser depuis la source</button>
+            <button id="resetRates" class="btn-secondary compact">↺ Rétablir le barème embarqué</button>
+          </div>
+          <div id="modalStatus" class="rates-status" hidden></div>
+        </fieldset>
+
         <div class="table-scroll">
           <table id="ratesTable" class="rates-table">
             <thead>
@@ -223,6 +250,7 @@
                 <th>Taux 20 ans (%)</th>
                 <th>Taux 25 ans (%)</th>
                 <th>Frais dossier</th>
+                <th>Source</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -248,6 +276,7 @@
 
     <script src="js/finance.js"></script>
     <script src="js/data.js"></script>
+    <script src="js/rates.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

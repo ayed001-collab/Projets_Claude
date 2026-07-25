@@ -15,8 +15,81 @@
   // Banques actives (copie éditable des banques par défaut)
   let banques = Data.BANQUES_DEFAUT.map((c) => ({ ...c, grilleTaux: { ...c.grilleTaux } }));
 
+  // État courant des taux (date de mise à jour, origine) + URL du flux configuré
+  let etatTaux = Rates.etatInitial();
+  const FEED_KEY = "simu-credit-feed-url-v1";
+  let feedUrl = (() => {
+    try {
+      return localStorage.getItem(FEED_KEY) || "";
+    } catch (e) {
+      return "";
+    }
+  })();
+
   // Contexte de la dernière simulation (pour le tableau d'amortissement)
   let dernierContexte = null;
+
+  /**
+   * Applique un état de taux (issu de Rates) sur les banques actives.
+   * Les taux du flux sont en % ; le moteur attend des fractions.
+   */
+  function appliquerTaux(etat) {
+    for (const b of banques) {
+      const grille = etat.banques[b.id];
+      if (!grille) continue;
+      for (const d of [180, 240, 300]) {
+        if (Number.isFinite(grille[d])) b.grilleTaux[d] = grille[d] / 100;
+      }
+    }
+    etatTaux = etat;
+  }
+
+  /** Affiche la ligne « Taux mis à jour le … » + lien vers les sources. */
+  function afficherMetaTaux() {
+    const d = new Date(etatTaux.dateMaj + "T00:00:00");
+    const dateFr = isNaN(d) ? etatTaux.dateMaj : d.toLocaleDateString("fr-FR");
+    $("ratesMeta").innerHTML = `Taux au <strong>${dateFr}</strong> · ${etatTaux.origine}`;
+  }
+
+  /** Affiche un message de statut (ok / err / info) dans une zone donnée. */
+  function statut(elId, type, message) {
+    const el = $(elId);
+    if (!message) {
+      el.hidden = true;
+      return;
+    }
+    el.className = "rates-status " + type;
+    el.textContent = message;
+    el.hidden = false;
+  }
+
+  /** Récupère les taux depuis le flux configuré et les applique. */
+  async function mettreAJourTaux(statusEl) {
+    if (!feedUrl) {
+      statut(
+        statusEl,
+        "info",
+        "Aucune URL de flux configurée. Ouvrez « ✎ Modifier » pour renseigner un flux JSON, ou saisissez les taux à la main."
+      );
+      return;
+    }
+    statut(statusEl, "info", "Chargement des taux depuis le flux…");
+    try {
+      const etat = await Rates.chargerDepuisUrl(feedUrl);
+      appliquerTaux(etat);
+      Rates.sauvegarder(etat);
+      afficherMetaTaux();
+      simuler();
+      const d = new Date(etat.dateMaj + "T00:00:00");
+      statut(
+        statusEl,
+        "ok",
+        `Taux mis à jour (${etat.origine}, ${isNaN(d) ? etat.dateMaj : d.toLocaleDateString("fr-FR")}).`
+      );
+    } catch (e) {
+      statut(statusEl, "err", "Échec de la mise à jour : " + e.message);
+    }
+  }
 
   /* ---------------- Lecture des entrées ---------------- */
   function lireEntrees() {
@@ -334,6 +407,10 @@
           b.dossierType === "pourcentage"
             ? `${(b.dossierValeur * 100).toFixed(2)} % (max ${b.dossierMax} €)`
             : `${b.dossierValeur} € (forfait)`;
+        const src = Rates.SOURCES[b.id];
+        const lienSource = src
+          ? `<a href="${src.url}" target="_blank" rel="noopener noreferrer">page officielle ↗</a>`
+          : "—";
         return `
         <tr>
           <td>${b.nom}</td>
@@ -341,9 +418,12 @@
           <td><input type="number" step="0.01" data-i="${i}" data-d="240" value="${(b.grilleTaux[240] * 100).toFixed(2)}"></td>
           <td><input type="number" step="0.01" data-i="${i}" data-d="300" value="${(b.grilleTaux[300] * 100).toFixed(2)}"></td>
           <td>${dossier}</td>
+          <td>${lienSource}</td>
         </tr>`;
       })
       .join("");
+    $("feedUrl").value = feedUrl;
+    statut("modalStatus", "info", "");
     $("ratesModal").hidden = false;
   }
 
@@ -355,7 +435,51 @@
         const d = +inp.dataset.d;
         banques[i].grilleTaux[d] = (+inp.value || 0) / 100;
       });
+    // Mémorise les taux saisis manuellement (origine « saisie manuelle »).
+    const etat = {
+      dateMaj: new Date().toISOString().slice(0, 10),
+      origine: "Saisie manuelle",
+      banques: {},
+    };
+    for (const b of banques) {
+      etat.banques[b.id] = {
+        180: b.grilleTaux[180] * 100,
+        240: b.grilleTaux[240] * 100,
+        300: b.grilleTaux[300] * 100,
+      };
+    }
+    etatTaux = etat;
+    Rates.sauvegarder(etat);
+    afficherMetaTaux();
     $("ratesModal").hidden = true;
+    simuler();
+  }
+
+  function memoriserFeedUrl() {
+    feedUrl = $("feedUrl").value.trim();
+    try {
+      if (feedUrl) localStorage.setItem(FEED_KEY, feedUrl);
+      else localStorage.removeItem(FEED_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  async function actualiserDepuisModale() {
+    memoriserFeedUrl();
+    await mettreAJourTaux("modalStatus");
+    if (feedUrl) ouvrirModale(); // rafraîchit les champs si le chargement a réussi
+    $("ratesModal").hidden = false;
+  }
+
+  function reinitialiserTaux() {
+    Rates.reinitialiser();
+    const etat = JSON.parse(JSON.stringify(Rates.BAREME_EMBARQUE));
+    appliquerTaux(etat);
+    Rates.sauvegarder(etat);
+    afficherMetaTaux();
+    ouvrirModale();
+    statut("modalStatus", "ok", "Barème embarqué rétabli.");
     simuler();
   }
 
@@ -368,15 +492,30 @@
 
   /* ---------------- Init ---------------- */
   function init() {
+    // Applique l'état de taux initial (local ou barème embarqué) aux banques.
+    appliquerTaux(etatTaux);
+    afficherMetaTaux();
+
     $("simuler").addEventListener("click", simuler);
     $("editRates").addEventListener("click", ouvrirModale);
+    $("editRates2").addEventListener("click", ouvrirModale);
     $("ratesSave").addEventListener("click", sauverModale);
     $("ratesClose").addEventListener("click", () => ($("ratesModal").hidden = true));
+    $("updateRates").addEventListener("click", () => mettreAJourTaux("ratesStatus"));
+    $("fetchRates").addEventListener("click", actualiserDepuisModale);
+    $("resetRates").addEventListener("click", reinitialiserTaux);
     $("theme-toggle").addEventListener("click", toggleTheme);
     $("amortBanque").addEventListener("change", afficherAmortissement);
     $("amortVue").addEventListener("change", afficherAmortissement);
     $("exportCsv").addEventListener("click", exporterCsv);
     $("exportPdf").addEventListener("click", () => window.print());
+    // Fermeture de la modale (clic hors du cadre, touche Échap)
+    $("ratesModal").addEventListener("click", (ev) => {
+      if (ev.target === $("ratesModal")) $("ratesModal").hidden = true;
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") $("ratesModal").hidden = true;
+    });
     // Recalcul dynamique sur les champs principaux
     ["prix", "typeBien", "dmto", "zone", "apport", "duree", "garantie", "assuranceTaux", "assuranceBase", "assuranceQuotite", "ptzActif", "ptzRevenus", "ptzPersonnes"].forEach(
       (id) => $(id).addEventListener("change", simuler)

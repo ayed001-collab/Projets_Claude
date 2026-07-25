@@ -258,6 +258,49 @@ td.num {
   margin: 0 0 12px;
 }
 
+/* Barre d'outils des taux */
+.rates-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.rates-meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.rates-meta a {
+  color: var(--accent);
+}
+.rates-actions {
+  display: flex;
+  gap: 8px;
+}
+.rates-status {
+  font-size: 0.85rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.rates-status.ok {
+  background: rgba(10, 143, 86, 0.14);
+  color: var(--good);
+}
+.rates-status.err {
+  background: rgba(209, 60, 60, 0.13);
+  color: var(--bad);
+}
+.rates-status.info {
+  background: var(--highlight);
+  color: var(--ink);
+}
+.rates-table a {
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+
 /* PTZ */
 .ptz-badge {
   display: inline-block;
