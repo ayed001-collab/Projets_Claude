@@ -144,6 +144,56 @@
     };
   }
 
+  /**
+   * Détermine le montant emprunté en tenant compte du rôle de l'apport :
+   * l'apport paie d'abord les frais comptant (notaire + garantie + dossier),
+   * son surplus réduit le prêt. Garantie et dossier dépendant du montant emprunté,
+   * on résout par point fixe.
+   * @returns {Object} détail du financement
+   */
+  function calculerFinancement(e, notaireTotal, ptzMontant) {
+    const dossierMoyenPour = (mp) =>
+      banques.reduce((s, cfg) => s + Data.makeBanque(cfg).fraisDossier(mp), 0) / banques.length;
+
+    let mp = Math.max(0, e.prix - ptzMontant); // départ : prix - PTZ (apport pas encore appliqué)
+    let garantie = 0;
+    let dossierMoyen = 0;
+    for (let i = 0; i < 6; i++) {
+      garantie = Finance.fraisGarantie(mp, e.garantie);
+      dossierMoyen = dossierMoyenPour(mp);
+      const fraisComptant = notaireTotal + garantie + dossierMoyen;
+      const apportResiduel = Math.max(0, e.apport - fraisComptant);
+      const mpNew = Math.max(0, e.prix - ptzMontant - apportResiduel);
+      if (Math.abs(mpNew - mp) < 1) {
+        mp = mpNew;
+        break;
+      }
+      mp = mpNew;
+    }
+    // Valeurs finales cohérentes avec le montant emprunté retenu
+    garantie = Finance.fraisGarantie(mp, e.garantie);
+    const dossiers = banques.map((cfg) => Data.makeBanque(cfg).fraisDossier(mp));
+    const dossierMin = Math.min(...dossiers);
+    const dossierMax = Math.max(...dossiers);
+    dossierMoyen = dossiers.reduce((s, d) => s + d, 0) / dossiers.length;
+
+    const fraisComptantRef = notaireTotal + garantie + dossierMoyen;
+    const apportResiduel = Math.max(0, e.apport - fraisComptantRef);
+    const manque = Math.max(0, fraisComptantRef - e.apport); // apport insuffisant pour les frais
+
+    return {
+      montantPrincipal: mp,
+      notaireTotal,
+      garantie,
+      dossierMin,
+      dossierMax,
+      fraisComptantMin: notaireTotal + garantie + dossierMin,
+      fraisComptantMax: notaireTotal + garantie + dossierMax,
+      apportResiduel,
+      manque,
+    };
+  }
+
   /* ---------------- Calcul principal ---------------- */
   function simuler() {
     const e = lireEntrees();
@@ -154,14 +204,9 @@
 
     // 1) Frais de notaire
     const notaire = Finance.fraisNotaire(e.prix, e.typeBien, e.dmto);
+    const coutOperation = e.prix + notaire.total; // information
 
-    // 2) Coût total de l'opération (information) et besoin de financement.
-    //    Les frais de notaire sont payés COMPTANT (non financés) : le prêt ne
-    //    finance que le prix du bien, diminué de l'apport (versé sur le prix).
-    const coutOperation = e.prix + notaire.total;
-    let besoinFinancement = Math.max(0, e.prix - e.apport);
-
-    // 3) PTZ
+    // 2) PTZ (finance une partie du prix, plafonné au prix)
     let ptz = { eligible: false, montant: 0 };
     if (e.ptzActif) {
       ptz = Finance.calculPTZ(
@@ -169,17 +214,20 @@
           zone: e.zone,
           personnes: e.ptzPersonnes,
           revenus: e.ptzRevenus,
-          coutOperation: e.prix, // le PTZ finance le coût du logement (hors notaire)
+          coutOperation: e.prix,
           typeBien: e.typeBien,
         },
         Data.PTZ
       );
     }
-    const ptzMontant = ptz.eligible ? Math.min(ptz.montant, besoinFinancement) : 0;
+    const ptzMontant = ptz.eligible ? Math.min(ptz.montant, e.prix) : 0;
 
-    // 4) Répartition PTZ / prêt principal
-    const montantPrincipal = Math.max(0, besoinFinancement - ptzMontant);
-    // Durée PTZ : on aligne sur la durée du prêt principal (approximation prudente).
+    // 3) Financement — l'apport paie D'ABORD les frais comptant (notaire + garantie
+    //    + dossier), non financés par le prêt ; son SURPLUS éventuel réduit le prêt.
+    //    La garantie et les frais de dossier dépendant du montant emprunté, on résout
+    //    par point fixe (converge en quelques itérations).
+    const fin = calculerFinancement(e, notaire.total, ptzMontant);
+    const montantPrincipal = fin.montantPrincipal;
     const ptzDureeMois = e.dureeMois;
 
     // 5) Simulation par banque
@@ -210,8 +258,8 @@
     };
 
     // 6) Affichage
-    afficherRecap(e, notaire, coutOperation, besoinFinancement, ptzMontant, montantPrincipal);
-    afficherComptant(e, resultats, montantPrincipal, notaire.total);
+    afficherRecap(e, notaire, coutOperation, ptzMontant, fin);
+    afficherComptant(e, fin);
     afficherAssuranceCalc(e, montantPrincipal + ptzMontant);
     afficherPTZ(e, ptz, ptzMontant);
     afficherComparatif(resultats, coutOperation);
@@ -221,7 +269,7 @@
   }
 
   /* ---------------- Affichages ---------------- */
-  function afficherRecap(e, notaire, coutOperation, besoin, ptzMontant, principal) {
+  function afficherRecap(e, notaire, coutOperation, ptzMontant, fin) {
     const rows = [];
     // --- Bloc coût de l'opération (information) ---
     rows.push(["Prix du bien", euro(e.prix), ""]);
@@ -234,16 +282,20 @@
       rows.push([`&nbsp;&nbsp;• ${k}`, euro(v), "sub"]);
     }
     rows.push(["Coût total de l'opération", euro(coutOperation), "total"]);
+    // --- Bloc plan de financement (le prêt ne finance que le prix) ---
+    rows.push(["Prix du bien à financer", euro(e.prix), ""]);
+    if (ptzMontant > 0) rows.push(["– Prêt à Taux Zéro (PTZ)", "− " + euro(ptzMontant), "accent"]);
     rows.push([
-      "&nbsp;&nbsp;<em>dont notaire payé comptant (non financé)</em>",
+      "– Surplus d'apport affecté au prix",
+      "− " + euro(fin.apportResiduel),
+      "",
+    ]);
+    rows.push([
+      "&nbsp;&nbsp;<em>apport après paiement des frais comptant</em>",
       "",
       "sub",
     ]);
-    // --- Bloc plan de financement (le prêt ne finance que le prix) ---
-    rows.push(["Prix du bien à financer", euro(e.prix), ""]);
-    rows.push(["– Apport personnel (sur le prix)", "− " + euro(e.apport), ""]);
-    if (ptzMontant > 0) rows.push(["– Prêt à Taux Zéro (PTZ)", "− " + euro(ptzMontant), "accent"]);
-    rows.push(["Montant emprunté (prêt principal)", euro(principal), "total"]);
+    rows.push(["Montant emprunté (prêt principal)", euro(fin.montantPrincipal), "total"]);
 
     $("recapAcquisition").innerHTML = rows
       .map(([lbl, val, cls]) => {
@@ -259,38 +311,49 @@
    * (indépendants de la banque) + frais de dossier (variables selon la banque).
    * Ces montants ne sont PAS financés → ils n'entrent pas dans la mensualité.
    */
-  function afficherComptant(e, resultats, montantPrincipal, notaireTotal) {
-    const garantie = Finance.fraisGarantie(montantPrincipal, e.garantie);
-    const dossiers = resultats.map((r) => r.fraisDossier);
-    const dossierMin = Math.min(...dossiers);
-    const dossierMax = Math.max(...dossiers);
+  function afficherComptant(e, fin) {
     const libGarantie = e.garantie === "hypotheque" ? "hypothèque / IPPD" : "caution";
-
     const dossierTxt =
-      dossierMin === dossierMax
-        ? euro(dossierMin)
-        : `${euro(dossierMin)} – ${euro(dossierMax)}`;
-    // Trésorerie de départ = apport (versé sur le prix) + tous les frais comptant
-    // (notaire + garantie + dossier), aucun n'étant financé par le prêt.
-    const base = e.apport + notaireTotal + garantie;
-    const tresorerieMin = base + dossierMin;
-    const tresorerieMax = base + dossierMax;
+      fin.dossierMin === fin.dossierMax
+        ? euro(fin.dossierMin)
+        : `${euro(fin.dossierMin)} – ${euro(fin.dossierMax)}`;
+    // Trésorerie nécessaire = frais comptant (notaire + garantie + dossier).
+    // L'apport COUVRE ces frais : il ne s'ajoute pas au total.
     const tresorerieTxt =
-      dossierMin === dossierMax
-        ? euro(tresorerieMin)
-        : `${euro(tresorerieMin)} – ${euro(tresorerieMax)}`;
+      fin.fraisComptantMin === fin.fraisComptantMax
+        ? euro(fin.fraisComptantMin)
+        : `${euro(fin.fraisComptantMin)} – ${euro(fin.fraisComptantMax)}`;
 
     const rows = [
-      ["Apport personnel (sur le prix)", euro(e.apport), ""],
-      ["Frais de notaire", euro(notaireTotal), "accent"],
-      [`Frais de garantie (${libGarantie})`, euro(garantie), "accent"],
+      ["Frais de notaire", euro(fin.notaireTotal), "accent"],
+      [`Frais de garantie (${libGarantie})`, euro(fin.garantie), "accent"],
       ["Frais de dossier (selon la banque)", dossierTxt, "accent"],
       ["Trésorerie nécessaire au démarrage", tresorerieTxt, "total"],
     ];
+    // Rôle de l'apport : couvre ces frais ; surplus vers le prêt, ou manque à combler.
+    if (fin.manque > 0) {
+      rows.push([
+        `Apport (${euro(e.apport)}) — <strong>insuffisant</strong>, manque`,
+        euro(fin.manque),
+        "bad",
+      ]);
+    } else {
+      rows.push([
+        `Apport (${euro(e.apport)}) — couvre les frais, surplus vers le prêt`,
+        euro(fin.apportResiduel),
+        "good",
+      ]);
+    }
+
     $("comptantRecap").innerHTML = rows
       .map(([lbl, val, cls]) => {
         const lblCls = "lbl" + (cls === "total" ? " total" : "");
-        const valCls = "val" + (cls === "total" ? " total" : "") + (cls === "accent" ? " accent" : "");
+        const valCls =
+          "val" +
+          (cls === "total" ? " total" : "") +
+          (cls === "accent" ? " accent" : "") +
+          (cls === "good" ? " good" : "") +
+          (cls === "bad" ? " bad" : "");
         return `<div class="${lblCls}">${lbl}</div><div class="${valCls}">${val}</div>`;
       })
       .join("");

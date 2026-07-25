@@ -206,6 +206,12 @@ select:focus {
 .recap-grid .val.accent {
   color: var(--accent);
 }
+.recap-grid .val.good {
+  color: var(--good);
+}
+.recap-grid .val.bad {
+  color: var(--bad);
+}
 
 /* Tables */
 .table-scroll {
