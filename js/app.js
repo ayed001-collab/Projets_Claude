@@ -130,6 +130,7 @@
       dmto: $("dmto").value ? +$("dmto").value : null,
       zone: $("zone").value,
       apport: +$("apport").value || 0,
+      autofinPct: (+$("autofinPct").value || 0) / 100,
       dureeMois: +$("duree").value,
       garantie: $("garantie").value,
       // Le taux effectif agrège les quotités : on l'applique au capital avec quotité = 1.
@@ -181,6 +182,15 @@
     const apportResiduel = Math.max(0, e.apport - fraisComptantRef);
     const manque = Math.max(0, fraisComptantRef - e.apport); // apport insuffisant pour les frais
 
+    // Exigence bancaire : autofinancement minimum (% du prix), destiné à couvrir
+    // notamment les frais de notaire.
+    const autofinPct = e.autofinPct || 0;
+    const apportMinimum = e.prix * autofinPct;
+    const autofinConforme = e.apport >= apportMinimum - 0.5;
+    const manqueAutofin = Math.max(0, apportMinimum - e.apport);
+    // Les 10 % doivent au moins couvrir les frais de notaire.
+    const couvreNotaire = e.apport >= notaireTotal - 0.5;
+
     return {
       montantPrincipal: mp,
       notaireTotal,
@@ -191,6 +201,11 @@
       fraisComptantMax: notaireTotal + garantie + dossierMax,
       apportResiduel,
       manque,
+      autofinPct,
+      apportMinimum,
+      autofinConforme,
+      manqueAutofin,
+      couvreNotaire,
     };
   }
 
@@ -330,16 +345,28 @@
       ["Frais de dossier (selon la banque)", dossierTxt, "accent"],
       ["Trésorerie nécessaire au démarrage", tresorerieTxt, "total"],
     ];
-    // Rôle de l'apport : couvre ces frais ; surplus vers le prêt, ou manque à combler.
-    if (fin.manque > 0) {
+    // Exigence bancaire d'autofinancement (% du prix), fléché vers les frais de notaire.
+    rows.push([
+      `Autofinancement exigé (${(fin.autofinPct * 100).toFixed(0)} % du prix)`,
+      euro(fin.apportMinimum),
+      "",
+    ]);
+    if (!fin.autofinConforme) {
       rows.push([
-        `Apport (${euro(e.apport)}) — <strong>insuffisant</strong>, manque`,
+        `Apport (${euro(e.apport)}) — <strong>sous le minimum exigé</strong>, manque`,
+        euro(fin.manqueAutofin),
+        "bad",
+      ]);
+    } else if (fin.manque > 0) {
+      // Conforme au 10 % mais insuffisant pour la totalité des frais comptant
+      rows.push([
+        `Apport (${euro(e.apport)}) — conforme mais ne couvre pas tous les frais, manque`,
         euro(fin.manque),
         "bad",
       ]);
     } else {
       rows.push([
-        `Apport (${euro(e.apport)}) — couvre les frais, surplus vers le prêt`,
+        `Apport (${euro(e.apport)}) — conforme, couvre les frais, surplus vers le prêt`,
         euro(fin.apportResiduel),
         "good",
       ]);
@@ -696,7 +723,7 @@
     });
     // Recalcul dynamique sur les champs principaux
     [
-      "prix", "typeBien", "dmto", "zone", "apport", "duree", "garantie",
+      "prix", "typeBien", "dmto", "zone", "apport", "autofinPct", "duree", "garantie",
       "assuranceBase", "age1", "prof1", "fum1", "quot1",
       "age2", "prof2", "fum2", "quot2",
       "ptzActif", "ptzRevenus", "ptzPersonnes",

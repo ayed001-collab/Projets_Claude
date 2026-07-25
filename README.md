@@ -126,6 +126,10 @@ résolu par **point fixe** (quelques itérations). Si l'apport est inférieur au
 le manque à combler est signalé. La **trésorerie nécessaire au démarrage = frais comptant**
 (notaire + garantie + dossier).
 
+**Autofinancement minimum exigé.** La banque impose un apport minimum (paramétrable, par défaut
+**10 % du prix**) destiné à financer les frais de notaire. La conformité de l'apport à cette
+exigence est vérifiée et affichée (conforme / sous le minimum, avec le manque à combler).
+
 Hypothèses simplificatrices assumées : différé PTZ modélisé de façon prudente (PTZ amorti sur
 la durée du prêt principal) ; débours notariés forfaitisés ; barèmes bancaires indicatifs.
 

@@ -72,6 +72,11 @@
           </label>
 
           <label>
+            Autofinancement min. exigé par la banque (% du prix)
+            <input type="number" id="autofinPct" value="10" min="0" max="100" step="1" />
+          </label>
+
+          <label>
             Durée du prêt
             <select id="duree">
               <option value="180">15 ans (180 mois)</option>
@@ -183,11 +188,12 @@
           <h2>À régler comptant au démarrage (hors prêt)</h2>
           <div id="comptantRecap" class="recap-grid"></div>
           <p class="hint" style="margin-top:12px">
-            La <strong>trésorerie nécessaire</strong> correspond aux frais comptant ; <strong>votre
-            apport sert à les payer</strong> (il ne s'y ajoute pas). Un apport supérieur aux frais
-            voit son surplus réduire le prêt. Ces frais <strong>ne sont pas financés</strong> et
-            n'entrent pas dans la mensualité (dossier et garantie restent comptés dans le coût total
-            du crédit et le TAEG ; le notaire est un coût d'acquisition).
+            La banque exige un <strong>autofinancement minimum</strong> (par défaut 10 % du prix),
+            destiné à couvrir les frais de notaire. La <strong>trésorerie nécessaire</strong>
+            correspond aux frais comptant ; <strong>votre apport sert à les payer</strong> (il ne
+            s'y ajoute pas), son surplus réduit le prêt. Ces frais <strong>ne sont pas
+            financés</strong> et n'entrent pas dans la mensualité (dossier et garantie restent
+            comptés dans le coût total du crédit et le TAEG ; le notaire est un coût d'acquisition).
           </p>
         </div>
 
