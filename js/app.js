@@ -185,6 +185,7 @@
 
     // 6) Affichage
     afficherRecap(e, notaire, coutOperation, besoinFinancement, ptzMontant, montantPrincipal);
+    afficherComptant(e, resultats, montantPrincipal);
     afficherPTZ(e, ptz, ptzMontant);
     afficherComparatif(resultats, coutOperation);
     afficherLeviers(e, resultats);
@@ -212,6 +213,44 @@
     $("recapAcquisition").innerHTML = rows
       .map(([lbl, val, cls]) => {
         const lblCls = cls === "sub" ? "lbl sub" : "lbl" + (cls === "total" ? " total" : "");
+        const valCls = "val" + (cls === "total" ? " total" : "") + (cls === "accent" ? " accent" : "");
+        return `<div class="${lblCls}">${lbl}</div><div class="${valCls}">${val}</div>`;
+      })
+      .join("");
+  }
+
+  /**
+   * Frais à régler comptant par l'emprunteur (hors prêt) : frais de garantie
+   * (indépendants de la banque) + frais de dossier (variables selon la banque).
+   * Ces montants ne sont PAS financés → ils n'entrent pas dans la mensualité.
+   */
+  function afficherComptant(e, resultats, montantPrincipal) {
+    const garantie = Finance.fraisGarantie(montantPrincipal, e.garantie);
+    const dossiers = resultats.map((r) => r.fraisDossier);
+    const dossierMin = Math.min(...dossiers);
+    const dossierMax = Math.max(...dossiers);
+    const libGarantie = e.garantie === "hypotheque" ? "hypothèque / IPPD" : "caution";
+
+    const dossierTxt =
+      dossierMin === dossierMax
+        ? euro(dossierMin)
+        : `${euro(dossierMin)} – ${euro(dossierMax)}`;
+    const tresorerieMin = e.apport + garantie + dossierMin;
+    const tresorerieMax = e.apport + garantie + dossierMax;
+    const tresorerieTxt =
+      dossierMin === dossierMax
+        ? euro(tresorerieMin)
+        : `${euro(tresorerieMin)} – ${euro(tresorerieMax)}`;
+
+    const rows = [
+      ["Apport personnel", euro(e.apport), ""],
+      [`Frais de garantie (${libGarantie})`, euro(garantie), "accent"],
+      ["Frais de dossier (selon la banque)", dossierTxt, "accent"],
+      ["Trésorerie nécessaire au démarrage", tresorerieTxt, "total"],
+    ];
+    $("comptantRecap").innerHTML = rows
+      .map(([lbl, val, cls]) => {
+        const lblCls = "lbl" + (cls === "total" ? " total" : "");
         const valCls = "val" + (cls === "total" ? " total" : "") + (cls === "accent" ? " accent" : "");
         return `<div class="${lblCls}">${lbl}</div><div class="${valCls}">${val}</div>`;
       })

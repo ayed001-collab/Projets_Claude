@@ -432,6 +432,11 @@
     // Mensualité après fin éventuelle du PTZ (si PTZ plus court que le prêt principal)
     const mensualiteApresPTZ = mensPrincipal + assur.premiereMensualite;
 
+    // --- Frais à régler COMPTANT par l'emprunteur (NON financés par le crédit) ---
+    // Ils n'entrent donc PAS dans la mensualité, mais restent comptés dans le coût
+    // total du crédit et dans le TAEG (obligation légale).
+    const fraisComptant = fraisDossier + garantie;
+
     // --- Coût total du crédit ---
     const coutAssurance = assur.total;
     const coutTotalCredit = interetsPrincipal + coutAssurance + fraisDossier + garantie;
@@ -455,6 +460,7 @@
       coutAssurance: round2(coutAssurance),
       fraisDossier: round2(fraisDossier),
       garantie: round2(garantie),
+      fraisComptant: round2(fraisComptant),
       coutTotalCredit: round2(coutTotalCredit),
       taegApprox,
       montantPrincipal: round2(montantPrincipal),

@@ -136,6 +136,17 @@
           <div id="recapAcquisition" class="recap-grid"></div>
         </div>
 
+        <!-- Frais à régler comptant (hors prêt) -->
+        <div class="panel" id="comptantPanel">
+          <h2>À régler comptant au démarrage (hors prêt)</h2>
+          <div id="comptantRecap" class="recap-grid"></div>
+          <p class="hint" style="margin-top:12px">
+            Ces frais sont payés directement par l'emprunteur : ils <strong>n'entrent pas dans la
+            mensualité</strong>. Ils restent toutefois comptés dans le coût total du crédit et dans
+            le TAEG (obligation légale).
+          </p>
+        </div>
+
         <!-- PTZ -->
         <div class="panel" id="ptzPanel">
           <h2>Prêt à Taux Zéro</h2>
@@ -154,8 +165,10 @@
           </div>
           <div id="ratesStatus" class="rates-status" hidden></div>
           <p class="hint">
-            Mensualités assurance comprise, triées de la plus avantageuse à la plus chère
-            (coût total du crédit).
+            Mensualité = <strong>crédit + assurance uniquement</strong>. Les frais de dossier et de
+            garantie sont <strong>payés comptant</strong> (hors prêt) : ils n'entrent pas dans la
+            mensualité, mais sont comptés dans le coût total du crédit et le TAEG. Tri du plus
+            avantageux au plus cher (coût total).
           </p>
           <div class="table-scroll">
             <table id="comparatif" class="compare-table">
