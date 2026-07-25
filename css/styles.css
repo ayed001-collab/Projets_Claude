@@ -1,0 +1,337 @@
+/* styles.css — Simulateur de crédit immobilier */
+:root {
+  --bg: #f4f6fb;
+  --panel: #ffffff;
+  --ink: #1a2236;
+  --muted: #5b6b86;
+  --accent: #1e5eff;
+  --accent-ink: #ffffff;
+  --border: #e2e8f4;
+  --good: #0a8f56;
+  --bad: #d13c3c;
+  --highlight: #eaf1ff;
+  --shadow: 0 2px 12px rgba(20, 40, 90, 0.08);
+  --radius: 14px;
+}
+:root[data-theme="dark"] {
+  --bg: #0f1420;
+  --panel: #182034;
+  --ink: #e8edf7;
+  --muted: #9aa8c2;
+  --accent: #4f83ff;
+  --accent-ink: #0b1020;
+  --border: #26314a;
+  --good: #38d08a;
+  --bad: #ff6b6b;
+  --highlight: #1d2942;
+  --shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: linear-gradient(135deg, #1e3a8a, #1e5eff);
+  color: #fff;
+  padding: 26px 0 30px;
+  position: relative;
+}
+.site-header h1 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+.subtitle {
+  margin: 6px 0 0;
+  opacity: 0.9;
+  font-size: 0.98rem;
+}
+.theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  font-size: 1.2rem;
+  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Layout */
+.layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  margin: -18px auto 40px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+.panel h2 {
+  margin: 0 0 14px;
+  font-size: 1.15rem;
+}
+
+/* Formulaire */
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px 4px;
+}
+legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent);
+  padding: 0 6px;
+}
+label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+label.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+input[type="number"],
+select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+label.checkbox input {
+  width: auto;
+  margin: 0;
+}
+input:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.btn-primary,
+.btn-secondary {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.98rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.btn-secondary:hover {
+  background: var(--highlight);
+}
+
+/* Récap acquisition */
+.recap-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  font-size: 0.95rem;
+}
+.recap-grid .lbl {
+  color: var(--muted);
+}
+.recap-grid .val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.recap-grid .total {
+  border-top: 2px solid var(--border);
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 1.05rem;
+}
+.recap-grid .sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding-left: 12px;
+}
+.recap-grid .val.accent {
+  color: var(--accent);
+}
+
+/* Tables */
+.table-scroll {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+th,
+td {
+  padding: 10px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.compare-table tbody tr.best {
+  background: var(--highlight);
+}
+.compare-table tbody tr.best td:first-child::after {
+  content: " ★";
+  color: var(--good);
+}
+td.num {
+  font-variant-numeric: tabular-nums;
+}
+.bank-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}
+
+/* PTZ */
+.ptz-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.ptz-badge.ok {
+  background: rgba(10, 143, 86, 0.15);
+  color: var(--good);
+}
+.ptz-badge.no {
+  background: rgba(209, 60, 60, 0.13);
+  color: var(--bad);
+}
+
+/* Leviers */
+.levers ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.levers li {
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+}
+.levers li strong {
+  color: var(--accent);
+}
+
+/* Modale */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 16, 30, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+.modal[hidden] {
+  display: none;
+}
+.modal-box {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+.rates-table input {
+  width: 90px;
+  padding: 6px;
+}
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+.modal-actions button {
+  width: auto;
+  flex: 1;
+}
+
+/* Footer */
+.site-footer {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 20px 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
