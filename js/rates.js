@@ -38,6 +38,14 @@
 
   const STORAGE_KEY = "simu-credit-taux-v1";
 
+  // Flux de taux par défaut : fichier JSON du dépôt, servi par GitHub raw (CORS activé).
+  // Le bouton « ⟳ Mettre à jour » l'utilise sans configuration.
+  // NB : fonctionne partout où les requêtes externes sont permises (local, GitHub Pages,
+  // hébergement classique). Le lien Artifact hébergé bloque en revanche toute requête
+  // externe : là, seule la saisie manuelle (mémorisée) est disponible.
+  const DEFAULT_FEED_URL =
+    "https://raw.githubusercontent.com/ayed001-collab/QCM-Examen-K-lia/claude/mortgage-simulator-platform-rjcwyk/data/taux.json";
+
   /**
    * Valide et normalise un flux de taux (structure attendue documentée ci-dessous).
    * Format attendu :
@@ -122,6 +130,7 @@
   global.Rates = {
     SOURCES,
     BAREME_EMBARQUE,
+    DEFAULT_FEED_URL,
     valider,
     chargerDepuisUrl,
     sauvegarder,

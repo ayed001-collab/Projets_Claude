@@ -18,12 +18,15 @@
   // État courant des taux (date de mise à jour, origine) + URL du flux configuré
   let etatTaux = Rates.etatInitial();
   const FEED_KEY = "simu-credit-feed-url-v1";
+  // URL du flux : valeur mémorisée si présente, sinon le flux par défaut du dépôt.
   let feedUrl = (() => {
     try {
-      return localStorage.getItem(FEED_KEY) || "";
+      const saved = localStorage.getItem(FEED_KEY);
+      if (saved !== null) return saved; // "" = l'utilisateur a volontairement vidé le champ
     } catch (e) {
-      return "";
+      /* ignore */
     }
+    return Rates.DEFAULT_FEED_URL;
   })();
 
   // Contexte de la dernière simulation (pour le tableau d'amortissement)
@@ -69,7 +72,7 @@
       statut(
         statusEl,
         "info",
-        "Aucune URL de flux configurée. Ouvrez « ✎ Modifier » pour renseigner un flux JSON, ou saisissez les taux à la main."
+        "Aucun flux configuré (champ vidé). Ouvrez « ✎ Modifier » pour renseigner une URL de flux JSON — ou saisissez les taux à la main, ils seront mémorisés."
       );
       return;
     }
@@ -87,7 +90,13 @@
         `Taux mis à jour (${etat.origine}, ${isNaN(d) ? etat.dateMaj : d.toLocaleDateString("fr-FR")}).`
       );
     } catch (e) {
-      statut(statusEl, "err", "Échec de la mise à jour : " + e.message);
+      statut(
+        statusEl,
+        "err",
+        "Échec de la mise à jour : " +
+          e.message +
+          " — Sur le lien hébergé (Artifact), les requêtes externes sont bloquées : utilisez « ✎ Modifier » pour saisir les taux (mémorisés)."
+      );
     }
   }
 
