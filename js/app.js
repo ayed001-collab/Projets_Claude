@@ -155,10 +155,11 @@
     // 1) Frais de notaire
     const notaire = Finance.fraisNotaire(e.prix, e.typeBien, e.dmto);
 
-    // 2) Coût total de l'opération (hors frais de crédit) et besoin de financement
+    // 2) Coût total de l'opération (information) et besoin de financement.
+    //    Les frais de notaire sont payés COMPTANT (non financés) : le prêt ne
+    //    finance que le prix du bien, diminué de l'apport (versé sur le prix).
     const coutOperation = e.prix + notaire.total;
-    // Montant à emprunter = coût opération - apport
-    let besoinFinancement = Math.max(0, coutOperation - e.apport);
+    let besoinFinancement = Math.max(0, e.prix - e.apport);
 
     // 3) PTZ
     let ptz = { eligible: false, montant: 0 };
@@ -210,7 +211,7 @@
 
     // 6) Affichage
     afficherRecap(e, notaire, coutOperation, besoinFinancement, ptzMontant, montantPrincipal);
-    afficherComptant(e, resultats, montantPrincipal);
+    afficherComptant(e, resultats, montantPrincipal, notaire.total);
     afficherAssuranceCalc(e, montantPrincipal + ptzMontant);
     afficherPTZ(e, ptz, ptzMontant);
     afficherComparatif(resultats, coutOperation);
@@ -222,6 +223,7 @@
   /* ---------------- Affichages ---------------- */
   function afficherRecap(e, notaire, coutOperation, besoin, ptzMontant, principal) {
     const rows = [];
+    // --- Bloc coût de l'opération (information) ---
     rows.push(["Prix du bien", euro(e.prix), ""]);
     rows.push([
       `Frais de notaire (${e.typeBien}) — ${pct(notaire.tauxEffectif)}`,
@@ -232,7 +234,14 @@
       rows.push([`&nbsp;&nbsp;• ${k}`, euro(v), "sub"]);
     }
     rows.push(["Coût total de l'opération", euro(coutOperation), "total"]);
-    rows.push(["– Apport personnel", "− " + euro(e.apport), ""]);
+    rows.push([
+      "&nbsp;&nbsp;<em>dont notaire payé comptant (non financé)</em>",
+      "",
+      "sub",
+    ]);
+    // --- Bloc plan de financement (le prêt ne finance que le prix) ---
+    rows.push(["Prix du bien à financer", euro(e.prix), ""]);
+    rows.push(["– Apport personnel (sur le prix)", "− " + euro(e.apport), ""]);
     if (ptzMontant > 0) rows.push(["– Prêt à Taux Zéro (PTZ)", "− " + euro(ptzMontant), "accent"]);
     rows.push(["Montant emprunté (prêt principal)", euro(principal), "total"]);
 
@@ -250,7 +259,7 @@
    * (indépendants de la banque) + frais de dossier (variables selon la banque).
    * Ces montants ne sont PAS financés → ils n'entrent pas dans la mensualité.
    */
-  function afficherComptant(e, resultats, montantPrincipal) {
+  function afficherComptant(e, resultats, montantPrincipal, notaireTotal) {
     const garantie = Finance.fraisGarantie(montantPrincipal, e.garantie);
     const dossiers = resultats.map((r) => r.fraisDossier);
     const dossierMin = Math.min(...dossiers);
@@ -261,15 +270,19 @@
       dossierMin === dossierMax
         ? euro(dossierMin)
         : `${euro(dossierMin)} – ${euro(dossierMax)}`;
-    const tresorerieMin = e.apport + garantie + dossierMin;
-    const tresorerieMax = e.apport + garantie + dossierMax;
+    // Trésorerie de départ = apport (versé sur le prix) + tous les frais comptant
+    // (notaire + garantie + dossier), aucun n'étant financé par le prêt.
+    const base = e.apport + notaireTotal + garantie;
+    const tresorerieMin = base + dossierMin;
+    const tresorerieMax = base + dossierMax;
     const tresorerieTxt =
       dossierMin === dossierMax
         ? euro(tresorerieMin)
         : `${euro(tresorerieMin)} – ${euro(tresorerieMax)}`;
 
     const rows = [
-      ["Apport personnel", euro(e.apport), ""],
+      ["Apport personnel (sur le prix)", euro(e.apport), ""],
+      ["Frais de notaire", euro(notaireTotal), "accent"],
       [`Frais de garantie (${libGarantie})`, euro(garantie), "accent"],
       ["Frais de dossier (selon la banque)", dossierTxt, "accent"],
       ["Trésorerie nécessaire au démarrage", tresorerieTxt, "total"],

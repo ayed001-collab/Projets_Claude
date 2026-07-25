@@ -117,6 +117,11 @@ les taux sont en pourcentage.
   par `max(RFR N-2 ; coût/9)` comparé aux plafonds de revenu (× coefficient familial).
 - **TAEG** : bissection sur le taux annulant la VAN des flux réels.
 
+**Financement.** Le prêt ne finance que le **prix du bien** (diminué de l'apport et du PTZ).
+Les **frais de notaire, de dossier et de garantie sont payés comptant** par l'emprunteur
+(non financés) : ils n'entrent donc pas dans la mensualité. Le panneau « À régler comptant »
+récapitule l'apport + ces frais = **trésorerie nécessaire au démarrage**.
+
 Hypothèses simplificatrices assumées : différé PTZ modélisé de façon prudente (PTZ amorti sur
 la durée du prêt principal) ; débours notariés forfaitisés ; barèmes bancaires indicatifs.
 
