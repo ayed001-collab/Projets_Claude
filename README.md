@@ -117,18 +117,23 @@ les taux sont en pourcentage.
   par `max(RFR N-2 ; coût/9)` comparé aux plafonds de revenu (× coefficient familial).
 - **TAEG** : bissection sur le taux annulant la VAN des flux réels.
 
-**Financement.** Le prêt ne finance que le **prix du bien** (diminué du PTZ et du surplus
-d'apport). Les **frais de notaire, de dossier et de garantie sont payés comptant** (non
-financés) : ils n'entrent pas dans la mensualité. L'**apport sert d'abord à payer ces frais**
-(il ne s'ajoute pas à la trésorerie nécessaire) ; son **surplus éventuel réduit le prêt**.
-La garantie et les frais de dossier dépendant du montant emprunté, le montant du prêt est
-résolu par **point fixe** (quelques itérations). Si l'apport est inférieur aux frais comptant,
-le manque à combler est signalé. La **trésorerie nécessaire au démarrage = frais comptant**
-(notaire + garantie + dossier).
+**Financement (plan du cas pratique).**
+- Coût total de l'opération = **Prix du bien + Frais de notaire**.
+- **Prêt bancaire = Coût total − Apport (autofinancement) − PTZ.**
+- Le **cash à apporter = l'apport** : il ne vient pas *en plus* des frais de notaire, il les
+  couvre (~les frais), le reste finançant une partie du prix. Les frais de notaire ne sont donc
+  pas financés par le crédit.
+
+Exemple : prix 400 000 € + notaire 30 000 € = 430 000 € ; apport 40 000 € (10 %) → prêt
+= 430 000 − 40 000 = **390 000 €** (dont ~30 000 € d'apport couvrent le notaire et 10 000 €
+financent une partie du prix).
 
 **Autofinancement minimum exigé.** La banque impose un apport minimum (paramétrable, par défaut
-**10 % du prix**) destiné à financer les frais de notaire. La conformité de l'apport à cette
-exigence est vérifiée et affichée (conforme / sous le minimum, avec le manque à combler).
+**10 % du prix**). La conformité de l'apport est vérifiée et affichée (conforme / sous le
+minimum, avec le manque à combler).
+
+**Frais de garantie et de dossier** : frais liés au crédit, payés comptant, comptés dans le
+coût total du crédit et le TAEG (affichés par banque dans le comparatif), mais hors mensualité.
 
 Hypothèses simplificatrices assumées : différé PTZ modélisé de façon prudente (PTZ amorti sur
 la durée du prêt principal) ; débours notariés forfaitisés ; barèmes bancaires indicatifs.

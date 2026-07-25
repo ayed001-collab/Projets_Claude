@@ -146,61 +146,36 @@
   }
 
   /**
-   * Détermine le montant emprunté en tenant compte du rôle de l'apport :
-   * l'apport paie d'abord les frais comptant (notaire + garantie + dossier),
-   * son surplus réduit le prêt. Garantie et dossier dépendant du montant emprunté,
-   * on résout par point fixe.
+   * Plan de financement (modèle du cas pratique) :
+   *   Coût total de l'opération = Prix + Frais de notaire
+   *   Prêt bancaire = Coût total − Apport (autofinancement) − PTZ
+   * L'apport (cash à apporter) couvre d'abord les frais de notaire, le reste
+   * finance une partie du prix. Il n'entre pas en plus des frais : c'est LE cash
+   * apporté à l'opération.
    * @returns {Object} détail du financement
    */
   function calculerFinancement(e, notaireTotal, ptzMontant) {
-    const dossierMoyenPour = (mp) =>
-      banques.reduce((s, cfg) => s + Data.makeBanque(cfg).fraisDossier(mp), 0) / banques.length;
+    const coutOperation = e.prix + notaireTotal;
+    const besoin = Math.max(0, coutOperation - e.apport);
+    const montantPrincipal = Math.max(0, besoin - ptzMontant);
 
-    let mp = Math.max(0, e.prix - ptzMontant); // départ : prix - PTZ (apport pas encore appliqué)
-    let garantie = 0;
-    let dossierMoyen = 0;
-    for (let i = 0; i < 6; i++) {
-      garantie = Finance.fraisGarantie(mp, e.garantie);
-      dossierMoyen = dossierMoyenPour(mp);
-      const fraisComptant = notaireTotal + garantie + dossierMoyen;
-      const apportResiduel = Math.max(0, e.apport - fraisComptant);
-      const mpNew = Math.max(0, e.prix - ptzMontant - apportResiduel);
-      if (Math.abs(mpNew - mp) < 1) {
-        mp = mpNew;
-        break;
-      }
-      mp = mpNew;
-    }
-    // Valeurs finales cohérentes avec le montant emprunté retenu
-    garantie = Finance.fraisGarantie(mp, e.garantie);
-    const dossiers = banques.map((cfg) => Data.makeBanque(cfg).fraisDossier(mp));
-    const dossierMin = Math.min(...dossiers);
-    const dossierMax = Math.max(...dossiers);
-    dossierMoyen = dossiers.reduce((s, d) => s + d, 0) / dossiers.length;
+    // Répartition de l'apport : couvre d'abord le notaire, le reste finance le prix.
+    const apportVersNotaire = Math.min(e.apport, notaireTotal);
+    const apportVersPrix = Math.max(0, e.apport - notaireTotal);
 
-    const fraisComptantRef = notaireTotal + garantie + dossierMoyen;
-    const apportResiduel = Math.max(0, e.apport - fraisComptantRef);
-    const manque = Math.max(0, fraisComptantRef - e.apport); // apport insuffisant pour les frais
-
-    // Exigence bancaire : autofinancement minimum (% du prix), destiné à couvrir
-    // notamment les frais de notaire.
+    // Exigence bancaire : autofinancement minimum (% du prix).
     const autofinPct = e.autofinPct || 0;
     const apportMinimum = e.prix * autofinPct;
     const autofinConforme = e.apport >= apportMinimum - 0.5;
     const manqueAutofin = Math.max(0, apportMinimum - e.apport);
-    // Les 10 % doivent au moins couvrir les frais de notaire.
     const couvreNotaire = e.apport >= notaireTotal - 0.5;
 
     return {
-      montantPrincipal: mp,
+      coutOperation,
+      montantPrincipal,
       notaireTotal,
-      garantie,
-      dossierMin,
-      dossierMax,
-      fraisComptantMin: notaireTotal + garantie + dossierMin,
-      fraisComptantMax: notaireTotal + garantie + dossierMax,
-      apportResiduel,
-      manque,
+      apportVersNotaire,
+      apportVersPrix,
       autofinPct,
       apportMinimum,
       autofinConforme,
@@ -235,12 +210,10 @@
         Data.PTZ
       );
     }
-    const ptzMontant = ptz.eligible ? Math.min(ptz.montant, e.prix) : 0;
-
-    // 3) Financement — l'apport paie D'ABORD les frais comptant (notaire + garantie
-    //    + dossier), non financés par le prêt ; son SURPLUS éventuel réduit le prêt.
-    //    La garantie et les frais de dossier dépendant du montant emprunté, on résout
-    //    par point fixe (converge en quelques itérations).
+    // 3) Financement (modèle du cas pratique) :
+    //    Prêt = (Prix + Notaire) − Apport (autofinancement) − PTZ.
+    const besoin = Math.max(0, coutOperation - e.apport);
+    const ptzMontant = ptz.eligible ? Math.min(ptz.montant, besoin) : 0;
     const fin = calculerFinancement(e, notaire.total, ptzMontant);
     const montantPrincipal = fin.montantPrincipal;
     const ptzDureeMois = e.dureeMois;
@@ -273,8 +246,8 @@
     };
 
     // 6) Affichage
-    afficherRecap(e, notaire, coutOperation, ptzMontant, fin);
-    afficherComptant(e, fin);
+    afficherRecap(e, notaire, ptzMontant, fin);
+    afficherComptant(e, fin, resultats, montantPrincipal);
     afficherAssuranceCalc(e, montantPrincipal + ptzMontant);
     afficherPTZ(e, ptz, ptzMontant);
     afficherComparatif(resultats, coutOperation);
@@ -284,9 +257,9 @@
   }
 
   /* ---------------- Affichages ---------------- */
-  function afficherRecap(e, notaire, coutOperation, ptzMontant, fin) {
+  function afficherRecap(e, notaire, ptzMontant, fin) {
     const rows = [];
-    // --- Bloc coût de l'opération (information) ---
+    // --- Coût de l'opération = prix + frais de notaire ---
     rows.push(["Prix du bien", euro(e.prix), ""]);
     rows.push([
       `Frais de notaire (${e.typeBien}) — ${pct(notaire.tauxEffectif)}`,
@@ -296,21 +269,11 @@
     for (const [k, v] of Object.entries(notaire.detail)) {
       rows.push([`&nbsp;&nbsp;• ${k}`, euro(v), "sub"]);
     }
-    rows.push(["Coût total de l'opération", euro(coutOperation), "total"]);
-    // --- Bloc plan de financement (le prêt ne finance que le prix) ---
-    rows.push(["Prix du bien à financer", euro(e.prix), ""]);
+    rows.push(["Coût total de l'opération", euro(fin.coutOperation), "total"]);
+    // --- Plan de financement : prêt = coût total − apport − PTZ ---
+    rows.push(["– Autofinancement (apport)", "− " + euro(e.apport), ""]);
     if (ptzMontant > 0) rows.push(["– Prêt à Taux Zéro (PTZ)", "− " + euro(ptzMontant), "accent"]);
-    rows.push([
-      "– Surplus d'apport affecté au prix",
-      "− " + euro(fin.apportResiduel),
-      "",
-    ]);
-    rows.push([
-      "&nbsp;&nbsp;<em>apport après paiement des frais comptant</em>",
-      "",
-      "sub",
-    ]);
-    rows.push(["Montant emprunté (prêt principal)", euro(fin.montantPrincipal), "total"]);
+    rows.push(["Prêt bancaire (montant emprunté)", euro(fin.montantPrincipal), "total"]);
 
     $("recapAcquisition").innerHTML = rows
       .map(([lbl, val, cls]) => {
@@ -326,26 +289,10 @@
    * (indépendants de la banque) + frais de dossier (variables selon la banque).
    * Ces montants ne sont PAS financés → ils n'entrent pas dans la mensualité.
    */
-  function afficherComptant(e, fin) {
-    const libGarantie = e.garantie === "hypotheque" ? "hypothèque / IPPD" : "caution";
-    const dossierTxt =
-      fin.dossierMin === fin.dossierMax
-        ? euro(fin.dossierMin)
-        : `${euro(fin.dossierMin)} – ${euro(fin.dossierMax)}`;
-    // Trésorerie nécessaire = frais comptant (notaire + garantie + dossier).
-    // L'apport COUVRE ces frais : il ne s'ajoute pas au total.
-    const tresorerieTxt =
-      fin.fraisComptantMin === fin.fraisComptantMax
-        ? euro(fin.fraisComptantMin)
-        : `${euro(fin.fraisComptantMin)} – ${euro(fin.fraisComptantMax)}`;
-
-    const rows = [
-      ["Frais de notaire", euro(fin.notaireTotal), "accent"],
-      [`Frais de garantie (${libGarantie})`, euro(fin.garantie), "accent"],
-      ["Frais de dossier (selon la banque)", dossierTxt, "accent"],
-      ["Trésorerie nécessaire au démarrage", tresorerieTxt, "total"],
-    ];
-    // Exigence bancaire d'autofinancement (% du prix), fléché vers les frais de notaire.
+  function afficherComptant(e, fin, resultats, montantPrincipal) {
+    const rows = [];
+    // Cash à apporter = l'apport (autofinancement). C'est LE cash de l'opération.
+    rows.push(["Cash à apporter (votre apport)", euro(e.apport), "total"]);
     rows.push([
       `Autofinancement exigé (${(fin.autofinPct * 100).toFixed(0)} % du prix)`,
       euro(fin.apportMinimum),
@@ -353,28 +300,28 @@
     ]);
     if (!fin.autofinConforme) {
       rows.push([
-        `Apport (${euro(e.apport)}) — <strong>sous le minimum exigé</strong>, manque`,
+        "Conformité — <strong>sous le minimum</strong>, manque",
         euro(fin.manqueAutofin),
         "bad",
       ]);
-    } else if (fin.manque > 0) {
-      // Conforme au 10 % mais insuffisant pour la totalité des frais comptant
-      rows.push([
-        `Apport (${euro(e.apport)}) — conforme mais ne couvre pas tous les frais, manque`,
-        euro(fin.manque),
-        "bad",
-      ]);
     } else {
-      rows.push([
-        `Apport (${euro(e.apport)}) — conforme, couvre les frais, surplus vers le prêt`,
-        euro(fin.apportResiduel),
-        "good",
-      ]);
+      rows.push(["Conformité", "✓ conforme", "good"]);
     }
+    // Répartition de l'apport (comme le cas pratique)
+    rows.push([
+      "&nbsp;&nbsp;• dont frais de notaire",
+      euro(fin.apportVersNotaire),
+      "sub",
+    ]);
+    rows.push([
+      "&nbsp;&nbsp;• dont participation au prix du bien",
+      euro(fin.apportVersPrix),
+      "sub",
+    ]);
 
     $("comptantRecap").innerHTML = rows
       .map(([lbl, val, cls]) => {
-        const lblCls = "lbl" + (cls === "total" ? " total" : "");
+        const lblCls = cls === "sub" ? "lbl sub" : "lbl" + (cls === "total" ? " total" : "");
         const valCls =
           "val" +
           (cls === "total" ? " total" : "") +
