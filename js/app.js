@@ -124,13 +124,16 @@
   function lireEntrees() {
     const assures = lireAssures();
     const { tauxEffectif, detail } = Finance.tauxAssuranceEffectif(assures);
+    const prix = +$("prix").value || 0;
+    const autofinPct = (+$("autofinPct").value || 0) / 100;
     return {
-      prix: +$("prix").value || 0,
+      prix,
       typeBien: $("typeBien").value,
       dmto: $("dmto").value ? +$("dmto").value : null,
       zone: $("zone").value,
-      apport: +$("apport").value || 0,
-      autofinPct: (+$("autofinPct").value || 0) / 100,
+      autofinPct,
+      // Autofinancement (apport) calculé automatiquement à partir du taux.
+      apport: prix * autofinPct,
       dureeMois: +$("duree").value,
       garantie: $("garantie").value,
       // Le taux effectif agrège les quotités : on l'applique au capital avec quotité = 1.
@@ -163,12 +166,10 @@
     const apportVersNotaire = Math.min(e.apport, notaireTotal);
     const apportVersPrix = Math.max(0, e.apport - notaireTotal);
 
-    // Exigence bancaire : autofinancement minimum (% du prix).
+    // L'apport = autofinancement = taux × prix (calculé automatiquement).
     const autofinPct = e.autofinPct || 0;
-    const apportMinimum = e.prix * autofinPct;
-    const autofinConforme = e.apport >= apportMinimum - 0.5;
-    const manqueAutofin = Math.max(0, apportMinimum - e.apport);
     const couvreNotaire = e.apport >= notaireTotal - 0.5;
+    const manqueNotaire = Math.max(0, notaireTotal - e.apport);
 
     return {
       coutOperation,
@@ -177,10 +178,8 @@
       apportVersNotaire,
       apportVersPrix,
       autofinPct,
-      apportMinimum,
-      autofinConforme,
-      manqueAutofin,
       couvreNotaire,
+      manqueNotaire,
     };
   }
 
@@ -290,34 +289,31 @@
    * Ces montants ne sont PAS financés → ils n'entrent pas dans la mensualité.
    */
   function afficherComptant(e, fin, resultats, montantPrincipal) {
+    // Montant d'autofinancement calculé automatiquement, affiché sous le champ de taux.
+    $("autofinMontant").innerHTML =
+      `<div class="line"><span>Autofinancement (${(fin.autofinPct * 100).toLocaleString("fr-FR")} % × prix)</span><span class="big">${euro(e.apport)}</span></div>`;
+
     const rows = [];
-    // Cash à apporter = l'apport (autofinancement). C'est LE cash de l'opération.
-    rows.push(["Cash à apporter (votre apport)", euro(e.apport), "total"]);
+    // Cash à apporter = autofinancement = taux × prix (calculé automatiquement).
     rows.push([
-      `Autofinancement exigé (${(fin.autofinPct * 100).toFixed(0)} % du prix)`,
-      euro(fin.apportMinimum),
-      "",
+      `Cash à apporter — autofinancement (${(fin.autofinPct * 100).toLocaleString("fr-FR")} % du prix)`,
+      euro(e.apport),
+      "total",
     ]);
-    if (!fin.autofinConforme) {
-      rows.push([
-        "Conformité — <strong>sous le minimum</strong>, manque",
-        euro(fin.manqueAutofin),
-        "bad",
-      ]);
-    } else {
-      rows.push(["Conformité", "✓ conforme", "good"]);
-    }
     // Répartition de l'apport (comme le cas pratique)
-    rows.push([
-      "&nbsp;&nbsp;• dont frais de notaire",
-      euro(fin.apportVersNotaire),
-      "sub",
-    ]);
+    rows.push(["&nbsp;&nbsp;• dont frais de notaire", euro(fin.apportVersNotaire), "sub"]);
     rows.push([
       "&nbsp;&nbsp;• dont participation au prix du bien",
       euro(fin.apportVersPrix),
       "sub",
     ]);
+    if (!fin.couvreNotaire) {
+      rows.push([
+        "⚠ Autofinancement insuffisant pour couvrir le notaire, manque",
+        euro(fin.manqueNotaire),
+        "bad",
+      ]);
+    }
 
     $("comptantRecap").innerHTML = rows
       .map(([lbl, val, cls]) => {
@@ -670,7 +666,7 @@
     });
     // Recalcul dynamique sur les champs principaux
     [
-      "prix", "typeBien", "dmto", "zone", "apport", "autofinPct", "duree", "garantie",
+      "prix", "typeBien", "dmto", "zone", "autofinPct", "duree", "garantie",
       "assuranceBase", "age1", "prof1", "fum1", "quot1",
       "age2", "prof2", "fum2", "quot2",
       "ptzActif", "ptzRevenus", "ptzPersonnes",

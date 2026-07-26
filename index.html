@@ -67,14 +67,10 @@
         <fieldset>
           <legend>Le financement</legend>
           <label>
-            Apport personnel (€)
-            <input type="number" id="apport" value="30000" min="0" step="1000" />
+            Taux d'autofinancement (% du prix)
+            <input type="number" id="autofinPct" value="10" min="0" max="100" step="0.5" />
           </label>
-
-          <label>
-            Autofinancement min. exigé par la banque (% du prix)
-            <input type="number" id="autofinPct" value="10" min="0" max="100" step="1" />
-          </label>
+          <div id="autofinMontant" class="assur-calc"></div>
 
           <label>
             Durée du prêt

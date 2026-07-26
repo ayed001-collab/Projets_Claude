@@ -128,9 +128,10 @@ Exemple : prix 400 000 € + notaire 30 000 € = 430 000 € ; apport 40 000 �
 = 430 000 − 40 000 = **390 000 €** (dont ~30 000 € d'apport couvrent le notaire et 10 000 €
 financent une partie du prix).
 
-**Autofinancement minimum exigé.** La banque impose un apport minimum (paramétrable, par défaut
-**10 % du prix**). La conformité de l'apport est vérifiée et affichée (conforme / sous le
-minimum, avec le manque à combler).
+**Autofinancement.** On saisit le **taux d'autofinancement** (par défaut **10 % du prix**) ; le
+**montant de l'apport est calculé automatiquement** (autofinancement = taux × prix) et utilisé
+comme cash à apporter. Sa répartition est détaillée (part couvrant le notaire / part finançant
+le prix) ; une alerte s'affiche si l'autofinancement ne suffit pas à couvrir les frais de notaire.
 
 **Frais de garantie et de dossier** : frais liés au crédit, payés comptant, comptés dans le
 coût total du crédit et le TAEG (affichés par banque dans le comparatif), mais hors mensualité.
