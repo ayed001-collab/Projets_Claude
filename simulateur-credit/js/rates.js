@@ -44,7 +44,7 @@
   // hébergement classique). Le lien Artifact hébergé bloque en revanche toute requête
   // externe : là, seule la saisie manuelle (mémorisée) est disponible.
   const DEFAULT_FEED_URL =
-    "https://raw.githubusercontent.com/ayed001-collab/QCM-Examen-K-lia/claude/mortgage-simulator-platform-rjcwyk/data/taux.json";
+    "https://raw.githubusercontent.com/ayed001-collab/QCM-Examen-K-lia/claude/mortgage-simulator-platform-rjcwyk/simulateur-credit/data/taux.json";
 
   /**
    * Valide et normalise un flux de taux (structure attendue documentée ci-dessous).

@@ -30,10 +30,10 @@ jobs:
         with:
           enablement: true
 
-      - name: Envoi du site (racine du dépôt)
+      - name: Envoi du site (dossier de l'application)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: "simulateur-credit"
 
       - name: Déploiement vers GitHub Pages
         id: deployment

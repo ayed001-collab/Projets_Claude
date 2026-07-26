@@ -13,12 +13,16 @@ assurance emprunteur, garantie et **Prêt à Taux Zéro (PTZ)**.
 
 ## Lancer la plateforme
 
-Aucune installation, aucun build. Ouvrez simplement `index.html` dans un navigateur.
+Aucune installation, aucun build. Le code de l'application est dans le dossier
+**`simulateur-credit/`**. Ouvrez simplement `simulateur-credit/index.html` dans un navigateur.
 
 ```bash
 # ou servez le dossier localement :
-python3 -m http.server 8000    # puis http://localhost:8000
+python3 -m http.server 8000 --directory simulateur-credit   # puis http://localhost:8000
 ```
+
+En ligne (GitHub Pages) : le dossier `simulateur-credit/` est publié à la racine du site,
+donc l'URL reste **https://ayed001-collab.github.io/QCM-Examen-K-lia/**.
 
 ---
 
@@ -44,20 +48,22 @@ actuelle nette des flux (mensualités + frais de dossier + garantie).
 ## Architecture
 
 ```
-index.html        Structure & formulaire
-css/styles.css    Mise en forme (thème clair/sombre)
-js/finance.js     Moteur de calcul — fonctions pures, testables (aucune dépendance UI)
-js/data.js        Données de référence : banques, barèmes PTZ, tranches notaire
-js/rates.js       Fournisseur de taux : flux JSON, mise à jour, persistance locale
-js/app.js         Orchestration : lecture des saisies → calcul → affichage
-data/taux.sample.json  Exemple de flux de taux (format attendu par « Mettre à jour »)
+simulateur-credit/
+  index.html        Structure & formulaire
+  css/styles.css    Mise en forme (thème clair/sombre)
+  js/finance.js     Moteur de calcul — fonctions pures, testables (aucune dépendance UI)
+  js/data.js        Données de référence : banques, barèmes PTZ, tranches notaire
+  js/rates.js       Fournisseur de taux : flux JSON, mise à jour, persistance locale
+  js/app.js         Orchestration : lecture des saisies → calcul → affichage
+  data/taux.json         Flux de taux par défaut (servi via GitHub raw)
+  data/taux.sample.json  Exemple de flux de taux (format attendu par « Mettre à jour »)
 ```
 
 Le moteur (`finance.js`) est isolé de l'interface pour être testé indépendamment
 (voir la commande de test Node ci-dessous).
 
 ```bash
-node -e 'global.window=globalThis; require("./js/finance.js"); require("./js/data.js");
+node -e 'global.window=globalThis; require("./simulateur-credit/js/finance.js"); require("./simulateur-credit/js/data.js");
   console.log(Finance.fraisNotaire(300000,"ancien").total);'
 ```
 
@@ -69,9 +75,10 @@ node -e 'global.window=globalThis; require("./js/finance.js"); require("./js/dat
 > et les banques ne publient pas de taux personnalisés exploitables). Le scraping côté client
 > est donc impossible — et le lien Artifact hébergé bloque en plus toute requête externe.
 
-**Par défaut, le bouton fonctionne sans configuration** : il charge `data/taux.json` du dépôt,
-servi par GitHub raw (CORS activé). Mettez à jour ce fichier et committez → le bouton recharge
-les nouvelles valeurs. Vous pouvez aussi pointer vers votre propre flux.
+**Par défaut, le bouton fonctionne sans configuration** : il charge
+`simulateur-credit/data/taux.json` du dépôt, servi par GitHub raw (CORS activé). Mettez à jour ce
+fichier et committez → le bouton recharge les nouvelles valeurs. Vous pouvez aussi pointer vers
+votre propre flux.
 
 > **Sur le lien Artifact hébergé**, les requêtes externes sont **bloquées** par la politique de
 > sécurité (aucune capacité d'accès réseau externe n'existe pour ces pages). Le bouton y affiche
@@ -79,8 +86,8 @@ les nouvelles valeurs. Vous pouvez aussi pointer vers votre propre flux.
 > localement). La mise à jour automatique fonctionne dans la version du dépôt (local, GitHub
 > Pages, hébergement classique).
 
-Le bouton **« ⟳ Mettre à jour »** consomme un **flux JSON configurable** (`data/taux.sample.json`
-donne le format), que vous alimentez selon votre contexte :
+Le bouton **« ⟳ Mettre à jour »** consomme un **flux JSON configurable**
+(`simulateur-credit/data/taux.sample.json` donne le format), que vous alimentez selon votre contexte :
 
 - **Saisie manuelle** dans la fenêtre « ✎ Modifier » (mémorisée en local) ;
 - **API d'un courtier / agrégateur** exposant les barèmes avec en-têtes CORS ;
@@ -98,7 +105,7 @@ L'URL du flux et les taux sont mémorisés (localStorage). Chaque banque affiche
 }
 ```
 
-Les identifiants de banque (`sg`, `ca`, `bnp`, `ce`, `cmut`) correspondent à ceux de `js/data.js` ;
+Les identifiants de banque (`sg`, `ca`, `bnp`, `ce`, `cmut`) correspondent à ceux de `simulateur-credit/js/data.js` ;
 les taux sont en pourcentage.
 
 ## Méthodologie de calcul
