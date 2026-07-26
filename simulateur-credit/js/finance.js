@@ -57,6 +57,66 @@
   }
 
   /**
+   * Estime le taux annuel d'assurance emprunteur d'UN assuré (TAEA indicatif,
+   * de type délégation, appliqué au capital assuré).
+   *
+   * ⚠️ Valeurs INDICATIVES. Les taux réels proviennent des grilles des assureurs
+   * et dépendent aussi de l'état de santé (questionnaire médical — supprimé par la
+   * loi Lemoine sous 200 000 € par assuré et remboursement avant 60 ans), des
+   * garanties souscrites (DC/PTIA, ITT/IPT/IPP) et de la durée.
+   *
+   * @param {Object} p
+   * @param {number} p.age         Âge de l'assuré à la souscription
+   * @param {boolean} p.fumeur     Fumeur (inclut vapotage) → surprime
+   * @param {string} p.profession  "sedentaire" | "deplacements" | "manuelle" | "risque"
+   * @returns {number} taux annuel (fraction, ex : 0.0022 = 0,22 %)
+   */
+  function tauxAssuranceEmprunteur(p) {
+    const age = p && Number.isFinite(p.age) ? p.age : 35;
+    // Barème de base par tranche d'âge (non-fumeur, profession sédentaire).
+    const bandes = [
+      { max: 30, taux: 0.001 },
+      { max: 35, taux: 0.0013 },
+      { max: 40, taux: 0.0017 },
+      { max: 45, taux: 0.0022 },
+      { max: 50, taux: 0.003 },
+      { max: 55, taux: 0.004 },
+      { max: 60, taux: 0.0055 },
+      { max: 65, taux: 0.0075 },
+      { max: Infinity, taux: 0.01 },
+    ];
+    let base = bandes[bandes.length - 1].taux;
+    for (const b of bandes) {
+      if (age <= b.max) {
+        base = b.taux;
+        break;
+      }
+    }
+    const majFumeur = p && p.fumeur ? 1.6 : 1.0;
+    const majProfession =
+      { sedentaire: 1.0, deplacements: 1.15, manuelle: 1.35, risque: 1.6 }[
+        p && p.profession
+      ] || 1.0;
+    return base * majFumeur * majProfession;
+  }
+
+  /**
+   * Taux d'assurance EFFECTIF appliqué au capital, pour 1 à 2 assurés avec quotités.
+   * prime = capital × Σ (taux_i × quotité_i). On renvoie donc Σ(taux_i × quotité_i),
+   * directement utilisable comme taux unique sur le capital (quotité = 1).
+   * @param {Array<{age,fumeur,profession,quotite}>} assures  quotite en fraction (1 = 100 %)
+   * @returns {{tauxEffectif:number, detail:Array<{taux:number, quotite:number}>}}
+   */
+  function tauxAssuranceEffectif(assures) {
+    const detail = (assures || []).map((a) => ({
+      taux: tauxAssuranceEmprunteur(a),
+      quotite: Number.isFinite(a.quotite) ? a.quotite : 1,
+    }));
+    const tauxEffectif = detail.reduce((s, d) => s + d.taux * d.quotite, 0);
+    return { tauxEffectif, detail };
+  }
+
+  /**
    * Tableau d'amortissement d'un prêt (hors assurance).
    * @returns {Array<{mois:number, interet:number, capital:number, restant:number}>}
    */
@@ -86,6 +146,97 @@
   function coutInterets(capital, tauxAnnuel, mois) {
     if (tauxAnnuel === 0) return 0;
     return mensualite(capital, tauxAnnuel, mois) * mois - capital;
+  }
+
+  /**
+   * Tableau d'amortissement DÉTAILLÉ combinant le prêt principal, le PTZ et l'assurance.
+   * Chaque ligne = un mois avec la ventilation intérêts / capital / assurance et
+   * le capital restant dû global.
+   * @returns {Array<{mois, interet, capitalPrincipal, capitalPTZ, assurance, mensualite, restant}>}
+   */
+  function echeancierDetaille(opts) {
+    const {
+      montantPrincipal,
+      tauxCredit,
+      dureeMois,
+      ptzMontant = 0,
+      ptzDureeMois = dureeMois,
+      assuranceTaux = 0,
+      assuranceBase = "initial",
+      assuranceQuotite = 1,
+    } = opts;
+
+    const iP = tauxCredit / 12;
+    const mP = mensualite(montantPrincipal, tauxCredit, dureeMois);
+    const mZ = ptzMontant > 0 ? mensualite(ptzMontant, 0, ptzDureeMois) : 0;
+    const capitalAssureInitial = (montantPrincipal + ptzMontant) * assuranceQuotite;
+
+    let restP = montantPrincipal;
+    let restZ = ptzMontant;
+    const nbMois = Math.max(dureeMois, ptzDureeMois);
+    const rows = [];
+
+    for (let k = 1; k <= nbMois; k++) {
+      // Prêt principal
+      let intP = 0,
+        capP = 0;
+      if (k <= dureeMois && restP > 0.005) {
+        intP = restP * iP;
+        capP = k === dureeMois ? restP : mP - intP;
+        capP = Math.min(capP, restP);
+        restP = Math.max(0, restP - capP);
+      }
+      // PTZ (taux 0)
+      let capZ = 0;
+      if (k <= ptzDureeMois && restZ > 0.005) {
+        capZ = k === ptzDureeMois ? restZ : mZ;
+        capZ = Math.min(capZ, restZ);
+        restZ = Math.max(0, restZ - capZ);
+      }
+
+      const restant = restP + restZ;
+      // Assurance
+      let assur;
+      if (assuranceBase === "restant") {
+        // Base = capital restant dû du mois précédent (avant amortissement de ce mois)
+        const baseAssur = (restant + capP + capZ) * assuranceQuotite;
+        assur = (baseAssur * assuranceTaux) / 12;
+      } else {
+        assur = (capitalAssureInitial * assuranceTaux) / 12;
+      }
+
+      rows.push({
+        mois: k,
+        interet: round2(intP),
+        capitalPrincipal: round2(capP),
+        capitalPTZ: round2(capZ),
+        assurance: round2(assur),
+        mensualite: round2(intP + capP + capZ + assur),
+        restant: round2(restant),
+      });
+    }
+    return rows;
+  }
+
+  /**
+   * Agrège un échéancier détaillé par année civile de prêt (12 mois).
+   */
+  function agregerParAnnee(rows) {
+    const annees = [];
+    for (let i = 0; i < rows.length; i += 12) {
+      const tranche = rows.slice(i, i + 12);
+      const somme = (f) => tranche.reduce((s, r) => s + r[f], 0);
+      annees.push({
+        annee: Math.floor(i / 12) + 1,
+        interet: round2(somme("interet")),
+        capitalPrincipal: round2(somme("capitalPrincipal")),
+        capitalPTZ: round2(somme("capitalPTZ")),
+        assurance: round2(somme("assurance")),
+        mensualite: round2(somme("mensualite")),
+        restant: tranche[tranche.length - 1].restant,
+      });
+    }
+    return annees;
   }
 
   /* -------------------------------------------------------------------------
@@ -341,6 +492,11 @@
     // Mensualité après fin éventuelle du PTZ (si PTZ plus court que le prêt principal)
     const mensualiteApresPTZ = mensPrincipal + assur.premiereMensualite;
 
+    // --- Frais à régler COMPTANT par l'emprunteur (NON financés par le crédit) ---
+    // Ils n'entrent donc PAS dans la mensualité, mais restent comptés dans le coût
+    // total du crédit et dans le TAEG (obligation légale).
+    const fraisComptant = fraisDossier + garantie;
+
     // --- Coût total du crédit ---
     const coutAssurance = assur.total;
     const coutTotalCredit = interetsPrincipal + coutAssurance + fraisDossier + garantie;
@@ -364,6 +520,7 @@
       coutAssurance: round2(coutAssurance),
       fraisDossier: round2(fraisDossier),
       garantie: round2(garantie),
+      fraisComptant: round2(fraisComptant),
       coutTotalCredit: round2(coutTotalCredit),
       taegApprox,
       montantPrincipal: round2(montantPrincipal),
@@ -375,7 +532,11 @@
     round2,
     mensualite,
     assurance,
+    tauxAssuranceEmprunteur,
+    tauxAssuranceEffectif,
     echeancier,
+    echeancierDetaille,
+    agregerParAnnee,
     coutInterets,
     emolumentsNotaire,
     fraisNotaire,

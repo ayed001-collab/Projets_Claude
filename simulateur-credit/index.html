@@ -67,9 +67,10 @@
         <fieldset>
           <legend>Le financement</legend>
           <label>
-            Apport personnel (€)
-            <input type="number" id="apport" value="30000" min="0" step="1000" />
+            Taux d'autofinancement (% du prix)
+            <input type="number" id="autofinPct" value="10" min="0" max="100" step="0.5" />
           </label>
+          <div id="autofinMontant" class="assur-calc"></div>
 
           <label>
             Durée du prêt
@@ -92,26 +93,68 @@
         <fieldset>
           <legend>Assurance emprunteur</legend>
           <label>
-            Taux annuel d'assurance (%)
-            <input type="number" id="assuranceTaux" value="0.34" min="0" step="0.01" />
-          </label>
-          <label>
             Base de calcul
             <select id="assuranceBase">
-              <option value="initial">Capital initial (assurance groupe)</option>
-              <option value="restant">Capital restant dû (délégation, dégressif)</option>
+              <option value="initial">Capital initial (constante)</option>
+              <option value="restant">Capital restant dû (dégressive)</option>
             </select>
           </label>
-          <label>
-            Quotité assurée (%)
-            <input type="number" id="assuranceQuotite" value="100" min="0" max="200" step="10" />
+
+          <div class="borrower">
+            <div class="borrower-title">Emprunteur 1</div>
+            <label>
+              Âge à la souscription
+              <input type="number" id="age1" value="35" min="18" max="85" step="1" />
+            </label>
+            <label>
+              Profession
+              <select id="prof1">
+                <option value="sedentaire">Bureau / sédentaire</option>
+                <option value="deplacements">Déplacements fréquents</option>
+                <option value="manuelle">Manuelle / à risque</option>
+                <option value="risque">Très à risque (hauteur, etc.)</option>
+              </select>
+            </label>
+            <label class="checkbox"><input type="checkbox" id="fum1" /> Fumeur</label>
+            <label>
+              Quotité assurée (%)
+              <input type="number" id="quot1" value="100" min="0" max="100" step="10" />
+            </label>
+          </div>
+
+          <label class="checkbox">
+            <input type="checkbox" id="coEmp" /> Ajouter un co-emprunteur
           </label>
+
+          <div class="borrower" id="borrower2" hidden>
+            <div class="borrower-title">Co-emprunteur</div>
+            <label>
+              Âge à la souscription
+              <input type="number" id="age2" value="35" min="18" max="85" step="1" />
+            </label>
+            <label>
+              Profession
+              <select id="prof2">
+                <option value="sedentaire">Bureau / sédentaire</option>
+                <option value="deplacements">Déplacements fréquents</option>
+                <option value="manuelle">Manuelle / à risque</option>
+                <option value="risque">Très à risque (hauteur, etc.)</option>
+              </select>
+            </label>
+            <label class="checkbox"><input type="checkbox" id="fum2" /> Fumeur</label>
+            <label>
+              Quotité assurée (%)
+              <input type="number" id="quot2" value="100" min="0" max="100" step="10" />
+            </label>
+          </div>
+
+          <div id="assuranceCalc" class="assur-calc"></div>
         </fieldset>
 
         <fieldset>
           <legend>Prêt à Taux Zéro (PTZ)</legend>
           <label class="checkbox">
-            <input type="checkbox" id="ptzActif" checked />
+            <input type="checkbox" id="ptzActif" autocomplete="off" />
             Simuler un PTZ
           </label>
           <label>
@@ -136,6 +179,19 @@
           <div id="recapAcquisition" class="recap-grid"></div>
         </div>
 
+        <!-- Autofinancement (cash à apporter) -->
+        <div class="panel" id="comptantPanel">
+          <h2>Autofinancement (cash à apporter)</h2>
+          <div id="comptantRecap" class="recap-grid"></div>
+          <p class="hint" style="margin-top:12px">
+            La banque exige un <strong>autofinancement minimum</strong> (par défaut 10 % du prix).
+            Cet apport <strong>ne vient pas en plus des frais de notaire</strong> : il les couvre
+            (~les frais), le reste finançant une partie du prix. Le prêt bancaire = coût total de
+            l'opération − apport − PTZ. Les frais de garantie et de dossier sont des frais liés au
+            crédit (comptés dans le coût total du crédit et le TAEG — voir le comparatif).
+          </p>
+        </div>
+
         <!-- PTZ -->
         <div class="panel" id="ptzPanel">
           <h2>Prêt à Taux Zéro</h2>
@@ -145,9 +201,19 @@
         <!-- Comparatif banques -->
         <div class="panel">
           <h2>Comparatif des banques</h2>
+          <div class="rates-toolbar">
+            <span id="ratesMeta" class="rates-meta"></span>
+            <span class="rates-actions">
+              <button id="updateRates" class="btn-secondary compact" title="Charger les taux depuis le flux configuré">⟳ Mettre à jour</button>
+              <button id="editRates2" class="btn-secondary compact">✎ Modifier</button>
+            </span>
+          </div>
+          <div id="ratesStatus" class="rates-status" hidden></div>
           <p class="hint">
-            Mensualités assurance comprise, triées de la plus avantageuse à la plus chère
-            (coût total du crédit).
+            Mensualité = <strong>crédit + assurance uniquement</strong>. Les frais de dossier et de
+            garantie sont <strong>payés comptant</strong> (hors prêt) : ils n'entrent pas dans la
+            mensualité, mais sont comptés dans le coût total du crédit et le TAEG. Tri du plus
+            avantageux au plus cher (coût total).
           </p>
           <div class="table-scroll">
             <table id="comparatif" class="compare-table">
@@ -168,6 +234,36 @@
           </div>
         </div>
 
+        <!-- Tableau d'amortissement -->
+        <div class="panel" id="amortPanel">
+          <div class="amort-head">
+            <h2>Tableau d'amortissement</h2>
+            <div class="amort-controls no-print">
+              <label class="inline">
+                Banque
+                <select id="amortBanque"></select>
+              </label>
+              <label class="inline">
+                Vue
+                <select id="amortVue">
+                  <option value="annuel">Annuelle</option>
+                  <option value="mensuel">Mensuelle</option>
+                </select>
+              </label>
+              <button id="exportCsv" class="btn-secondary compact">⬇ CSV</button>
+              <button id="exportPdf" class="btn-secondary compact">🖨 Imprimer / PDF</button>
+            </div>
+          </div>
+          <div id="amortMeta" class="hint"></div>
+          <div class="table-scroll">
+            <table id="amortTable" class="amort-table">
+              <thead></thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+
         <!-- Leviers d'optimisation -->
         <div class="panel levers">
           <h2>Leviers pour réduire le coût du crédit</h2>
@@ -181,9 +277,28 @@
       <div class="modal-box">
         <h2>Taux &amp; frais par banque</h2>
         <p class="hint">
-          Ajustez les taux nominaux (hors assurance) et les frais de dossier pour coller à vos
-          barèmes ou aux propositions reçues.
+          Ajustez les taux nominaux (hors assurance) et consultez la page officielle de chaque
+          banque via le lien « source ». Les taux sont mémorisés localement.
         </p>
+
+        <fieldset>
+          <legend>Mise à jour automatique</legend>
+          <label>
+            URL du flux de taux (JSON, CORS requis)
+            <input type="url" id="feedUrl" placeholder="https://exemple.com/taux.json" />
+          </label>
+          <p class="hint">
+            Le navigateur ne peut pas lire directement les sites des banques (CORS). Pointez vers
+            un flux JSON que vous alimentez (courtier, agrégateur, ou script serveur). Voir
+            <code>data/taux.sample.json</code> pour le format.
+          </p>
+          <div class="modal-actions">
+            <button id="fetchRates" class="btn-secondary compact">⟳ Actualiser depuis la source</button>
+            <button id="resetRates" class="btn-secondary compact">↺ Rétablir le barème embarqué</button>
+          </div>
+          <div id="modalStatus" class="rates-status" hidden></div>
+        </fieldset>
+
         <div class="table-scroll">
           <table id="ratesTable" class="rates-table">
             <thead>
@@ -193,6 +308,7 @@
                 <th>Taux 20 ans (%)</th>
                 <th>Taux 25 ans (%)</th>
                 <th>Frais dossier</th>
+                <th>Source</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -218,6 +334,7 @@
 
     <script src="js/finance.js"></script>
     <script src="js/data.js"></script>
+    <script src="js/rates.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

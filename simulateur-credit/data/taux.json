@@ -1,0 +1,12 @@
+{
+  "_commentaire": "Flux de taux par défaut consommé par le bouton « ⟳ Mettre à jour ». Servi via GitHub raw (CORS activé). Mettez à jour ce fichier (barèmes indicatifs) puis committez : le bouton rechargera les nouvelles valeurs. Taux en pourcentage ; identifiants de banque : sg, ca, bnp, ce, cmut.",
+  "dateMaj": "2026-07-25",
+  "origine": "Barème indicatif du dépôt (data/taux.json)",
+  "banques": {
+    "sg": { "180": 3.14, "240": 3.34, "300": 3.54 },
+    "ca": { "180": 3.08, "240": 3.28, "300": 3.48 },
+    "bnp": { "180": 3.18, "240": 3.38, "300": 3.58 },
+    "ce": { "180": 3.21, "240": 3.41, "300": 3.61 },
+    "cmut": { "180": 3.11, "240": 3.31, "300": 3.51 }
+  }
+}

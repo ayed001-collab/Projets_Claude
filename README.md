@@ -13,12 +13,16 @@ assurance emprunteur, garantie et **Prêt à Taux Zéro (PTZ)**.
 
 ## Lancer la plateforme
 
-Aucune installation, aucun build. Ouvrez simplement `index.html` dans un navigateur.
+Aucune installation, aucun build. Le code de l'application est dans le dossier
+**`simulateur-credit/`**. Ouvrez simplement `simulateur-credit/index.html` dans un navigateur.
 
 ```bash
 # ou servez le dossier localement :
-python3 -m http.server 8000    # puis http://localhost:8000
+python3 -m http.server 8000 --directory simulateur-credit   # puis http://localhost:8000
 ```
+
+En ligne (GitHub Pages) : le dossier `simulateur-credit/` est publié à la racine du site,
+donc l'URL reste **https://ayed001-collab.github.io/Projets_Claude/**.
 
 ---
 
@@ -26,14 +30,15 @@ python3 -m http.server 8000    # puis http://localhost:8000
 
 | Besoin exprimé | Implémentation |
 |---|---|
-| Taux des 5 banques les plus compétitives (dont Société Générale) | Grille éditable : SG, Crédit Agricole, BNP Paribas, Caisse d'Épargne, Crédit Mutuel/CIC — taux par durée (15/20/25 ans) |
+| Taux des 5 banques les plus compétitives (dont Société Générale) | Grille éditable : SG, Crédit Agricole, BNP Paribas, Caisse d'Épargne, Crédit Mutuel/CIC — taux par durée (15/20/25 ans), avec **date de mise à jour**, **liens vers les pages officielles** et bouton **« ⟳ Mettre à jour »** (flux JSON configurable) |
 | Saisie du montant du bien | Champ prix + apport personnel |
 | Frais de notaire (neuf vs ancien) | Barème réglementé des émoluments + DMTO différenciés (≈7,4 % ancien / ≈2,3 % neuf), avec option de majoration départementale 2025 |
 | Coût du dossier selon la banque | Frais de dossier paramétrables par banque (forfait ou %) |
-| Frais d'assurance crédit | Taux, base (capital initial *ou* restant dû) et quotité paramétrables |
+| Frais d'assurance crédit | Modèle réaliste par assuré : **âge, statut fumeur, profession, quotité**, pour **1 ou 2 emprunteurs** ; taux effectif = Σ(taux × quotité) ; base capital initial *ou* restant dû |
 | Calcul des échéances mensuelles | Mensualité assurance comprise, par banque, avec frais intégrés |
 | PTZ / prêt à taux zéro | Éligibilité + montant selon zone, revenus, composition du foyer (barèmes 2025) |
 | Options de réduction du coût | Section « leviers » + comparateur d'écart de coût total |
+| Tableau d'amortissement | Échéancier détaillé par banque (vue mensuelle ou annuelle), prêt principal + PTZ + assurance, avec **export CSV** et **impression / PDF** |
 
 Le simulateur calcule aussi un **TAEG approché** par recherche du taux annulant la valeur
 actuelle nette des flux (mensualités + frais de dossier + garantie).
@@ -43,22 +48,65 @@ actuelle nette des flux (mensualités + frais de dossier + garantie).
 ## Architecture
 
 ```
-index.html        Structure & formulaire
-css/styles.css    Mise en forme (thème clair/sombre)
-js/finance.js     Moteur de calcul — fonctions pures, testables (aucune dépendance UI)
-js/data.js        Données de référence : banques, barèmes PTZ, tranches notaire
-js/app.js         Orchestration : lecture des saisies → calcul → affichage
+simulateur-credit/
+  index.html        Structure & formulaire
+  css/styles.css    Mise en forme (thème clair/sombre)
+  js/finance.js     Moteur de calcul — fonctions pures, testables (aucune dépendance UI)
+  js/data.js        Données de référence : banques, barèmes PTZ, tranches notaire
+  js/rates.js       Fournisseur de taux : flux JSON, mise à jour, persistance locale
+  js/app.js         Orchestration : lecture des saisies → calcul → affichage
+  data/taux.json         Flux de taux par défaut (servi via GitHub raw)
+  data/taux.sample.json  Exemple de flux de taux (format attendu par « Mettre à jour »)
 ```
 
 Le moteur (`finance.js`) est isolé de l'interface pour être testé indépendamment
 (voir la commande de test Node ci-dessous).
 
 ```bash
-node -e 'global.window=globalThis; require("./js/finance.js"); require("./js/data.js");
+node -e 'global.window=globalThis; require("./simulateur-credit/js/finance.js"); require("./simulateur-credit/js/data.js");
   console.log(Finance.fraisNotaire(300000,"ancien").total);'
 ```
 
 ---
+
+## Mise à jour automatique des taux
+
+> ⚠️ **Un navigateur ne peut pas lire directement les sites des banques** (politique CORS ;
+> et les banques ne publient pas de taux personnalisés exploitables). Le scraping côté client
+> est donc impossible — et le lien Artifact hébergé bloque en plus toute requête externe.
+
+**Par défaut, le bouton fonctionne sans configuration** : il charge
+`simulateur-credit/data/taux.json` du dépôt, servi par GitHub raw (CORS activé). Mettez à jour ce
+fichier et committez → le bouton recharge les nouvelles valeurs. Vous pouvez aussi pointer vers
+votre propre flux.
+
+> **Sur le lien Artifact hébergé**, les requêtes externes sont **bloquées** par la politique de
+> sécurité (aucune capacité d'accès réseau externe n'existe pour ces pages). Le bouton y affiche
+> alors un message explicite : utilisez **« ✎ Modifier »** pour saisir les taux (mémorisés
+> localement). La mise à jour automatique fonctionne dans la version du dépôt (local, GitHub
+> Pages, hébergement classique).
+
+Le bouton **« ⟳ Mettre à jour »** consomme un **flux JSON configurable**
+(`simulateur-credit/data/taux.sample.json` donne le format), que vous alimentez selon votre contexte :
+
+- **Saisie manuelle** dans la fenêtre « ✎ Modifier » (mémorisée en local) ;
+- **API d'un courtier / agrégateur** exposant les barèmes avec en-têtes CORS ;
+- **Script serveur** (exécuté hors navigateur — Node, Python…) qui agrège les barèmes publiés
+  et publie un JSON conforme sur un hôte que vous contrôlez.
+
+L'URL du flux et les taux sont mémorisés (localStorage). Chaque banque affiche un lien vers sa
+**page officielle de barème** pour vérification. Format du flux :
+
+```json
+{
+  "dateMaj": "2026-07-20",
+  "origine": "Nom de la source",
+  "banques": { "sg": {"180": 3.15, "240": 3.35, "300": 3.55}, "ca": { } }
+}
+```
+
+Les identifiants de banque (`sg`, `ca`, `bnp`, `ce`, `cmut`) correspondent à ceux de `simulateur-credit/js/data.js` ;
+les taux sont en pourcentage.
 
 ## Méthodologie de calcul
 
@@ -67,10 +115,33 @@ node -e 'global.window=globalThis; require("./js/finance.js"); require("./js/dat
   + droits de mutation (DMTO ≈ 5,81 % ancien / 0,715 % neuf) + contribution de sécurité
   immobilière (0,10 %) + débours forfaitaires.
 - **Garantie** : caution (≈1,2 %, partiellement restituable) ou hypothèque/IPPD (≈1,5 %).
-- **Assurance** : sur capital initial (constante) ou capital restant dû (dégressive).
+- **Assurance emprunteur** : taux par assuré estimé à partir d'un barème par tranche d'âge,
+  majoré du statut fumeur (×1,6) et du risque professionnel (×1,0 à ×1,6). Taux effectif du prêt
+  = Σ(taux_assuré × quotité_assuré) ; prime sur capital initial (constante) ou restant dû (dégressive).
+  Valeurs indicatives (les taux réels proviennent des grilles des assureurs ; la loi Lemoine supprime
+  le questionnaire médical sous 200 000 € par assuré et remboursement avant 60 ans).
 - **PTZ** : `montant = min(coût ; plafond zone) × quotité de tranche`. Tranche déterminée
   par `max(RFR N-2 ; coût/9)` comparé aux plafonds de revenu (× coefficient familial).
 - **TAEG** : bissection sur le taux annulant la VAN des flux réels.
+
+**Financement (plan du cas pratique).**
+- Coût total de l'opération = **Prix du bien + Frais de notaire**.
+- **Prêt bancaire = Coût total − Apport (autofinancement) − PTZ.**
+- Le **cash à apporter = l'apport** : il ne vient pas *en plus* des frais de notaire, il les
+  couvre (~les frais), le reste finançant une partie du prix. Les frais de notaire ne sont donc
+  pas financés par le crédit.
+
+Exemple : prix 400 000 € + notaire 30 000 € = 430 000 € ; apport 40 000 € (10 %) → prêt
+= 430 000 − 40 000 = **390 000 €** (dont ~30 000 € d'apport couvrent le notaire et 10 000 €
+financent une partie du prix).
+
+**Autofinancement.** On saisit le **taux d'autofinancement** (par défaut **10 % du prix**) ; le
+**montant de l'apport est calculé automatiquement** (autofinancement = taux × prix) et utilisé
+comme cash à apporter. Sa répartition est détaillée (part couvrant le notaire / part finançant
+le prix) ; une alerte s'affiche si l'autofinancement ne suffit pas à couvrir les frais de notaire.
+
+**Frais de garantie et de dossier** : frais liés au crédit, payés comptant, comptés dans le
+coût total du crédit et le TAEG (affichés par banque dans le comparatif), mais hors mensualité.
 
 Hypothèses simplificatrices assumées : différé PTZ modélisé de façon prudente (PTZ amorti sur
 la durée du prêt principal) ; débours notariés forfaitisés ; barèmes bancaires indicatifs.
@@ -102,7 +173,7 @@ mais mériteraient une décision explicite :
 ### 3. Points de cadrage produit non abordés
 - **Objectif** : achat résidence principale, investissement locatif (Pinel/LMNP, fiscalité différente) ou secondaire ? Le PTZ ne concerne que la RP des primo-accédants.
 - **Prêts complémentaires** : Prêt Action Logement, PAS, prêt conventionné, éco-PTZ, prêts régionaux — à modéliser pour un « plan de financement » complet et un **lissage de prêts**.
-- **Sorties attendues** : tableau d'amortissement exportable (PDF), enregistrement/comparaison de scénarios, envoi par e-mail ?
+- **Sorties attendues** : tableau d'amortissement exportable (CSV / PDF) ✅ *implémenté* ; enregistrement/comparaison de scénarios, envoi par e-mail : à venir.
 - **Conformité** : mentions légales, RGPD si données personnelles stockées, statut IOBSP si conseil.
 
 ### Conclusion
