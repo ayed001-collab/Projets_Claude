@@ -635,6 +635,10 @@
 
   /* ---------------- Init ---------------- */
   function init() {
+    // PTZ décoché par défaut à chaque chargement (indépendamment d'une éventuelle
+    // restauration d'état du formulaire par le navigateur).
+    $("ptzActif").checked = false;
+
     // Applique l'état de taux initial (local ou barème embarqué) aux banques.
     appliquerTaux(etatTaux);
     afficherMetaTaux();
