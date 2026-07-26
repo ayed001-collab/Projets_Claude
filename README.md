@@ -22,7 +22,7 @@ python3 -m http.server 8000 --directory simulateur-credit   # puis http://localh
 ```
 
 En ligne (GitHub Pages) : le dossier `simulateur-credit/` est publié à la racine du site,
-donc l'URL reste **https://ayed001-collab.github.io/QCM-Examen-K-lia/**.
+donc l'URL reste **https://ayed001-collab.github.io/Projets_Claude/**.
 
 ---
 
